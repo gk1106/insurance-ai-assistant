@@ -1,0 +1,13 @@
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.1rem;
+  font-weight: 600;
+}

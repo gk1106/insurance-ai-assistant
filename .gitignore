@@ -38,3 +38,14 @@ Thumbs.db
 # Claude local settings
 **/.claude/settings.local.json
 
+
+# React / Vite
+frontend/InsuranceAi-frontend/node_modules/
+frontend/InsuranceAi-frontend/dist/
+frontend/InsuranceAi-frontend/.env
+frontend/InsuranceAi-frontend/.env.*
+!frontend/InsuranceAi-frontend/.env.example
+
+# IDE
+.vscode/
+.idea/
