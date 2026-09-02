@@ -18,6 +18,18 @@ export function AuthProvider({ children }) {
     setSession(nextSession)
   }
 
+  async function register(username, email, password) {
+    const data = await authApi.register({ username, email, password })
+    const nextSession = {
+      token: data.token,
+      username: data.username,
+      role: data.role,
+      expiresAt: data.expiresAt,
+    }
+    setStoredSession(nextSession)
+    setSession(nextSession)
+  }
+
   function logout() {
     clearStoredSession()
     setSession(null)
@@ -27,6 +39,7 @@ export function AuthProvider({ children }) {
     user: session ? { username: session.username, role: session.role } : null,
     isAuthenticated: Boolean(session),
     login,
+    register,
     logout,
   }
 

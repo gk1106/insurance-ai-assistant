@@ -4,6 +4,7 @@ import { RequireAuth } from './routes/RequireAuth'
 import { RedirectIfAuthenticated } from './routes/RedirectIfAuthenticated'
 import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { PoliciesPage } from './pages/PoliciesPage'
 import { ClaimsPage } from './pages/ClaimsPage'
@@ -16,6 +17,7 @@ function App() {
         <Routes>
           <Route element={<RedirectIfAuthenticated />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Route>
 
           <Route element={<RequireAuth />}>

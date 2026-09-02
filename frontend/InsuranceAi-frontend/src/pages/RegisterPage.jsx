@@ -1,13 +1,22 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import styles from './LoginPage.module.css'
+import styles from './RegisterPage.module.css'
 
-export function LoginPage() {
-  const { login } = useAuth()
+function extractErrorMessage(err) {
+  const data = err.response?.data
+  if (data?.fieldErrors?.length) {
+    return data.fieldErrors.map((fieldError) => fieldError.message).join(' ')
+  }
+  return data?.message || 'Unable to create account. Please try again.'
+}
+
+export function RegisterPage() {
+  const { register } = useAuth()
   const navigate = useNavigate()
 
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -18,11 +27,10 @@ export function LoginPage() {
     setIsSubmitting(true)
 
     try {
-      await login(username, password)
+      await register(username, email, password)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const message = err.response?.data?.message || 'Unable to sign in. Please try again.'
-      setError(message)
+      setError(extractErrorMessage(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -32,7 +40,7 @@ export function LoginPage() {
     <div className={styles.page}>
       <form className={styles.card} onSubmit={handleSubmit}>
         <h1 className={styles.title}>Insurance AI Assistant</h1>
-        <p className={styles.subtitle}>Sign in to your account</p>
+        <p className={styles.subtitle}>Create your account</p>
 
         {error && (
           <p className={styles.error} role="alert">
@@ -55,25 +63,40 @@ export function LoginPage() {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.label}>Password</span>
+          <span className={styles.label}>Email</span>
           <input
             className={styles.input}
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            type="email"
+            name="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
             disabled={isSubmitting}
           />
         </label>
 
+        <label className={styles.field}>
+          <span className={styles.label}>Password</span>
+          <input
+            className={styles.input}
+            type="password"
+            name="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            minLength={8}
+            disabled={isSubmitting}
+          />
+        </label>
+
         <button className={styles.submit} type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Signing in…' : 'Sign in'}
+          {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
 
         <p className={styles.switch}>
-          Don't have an account? <Link to="/register">Create one</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </form>
     </div>
