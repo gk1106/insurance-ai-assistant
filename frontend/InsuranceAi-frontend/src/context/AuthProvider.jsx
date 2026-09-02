@@ -2,30 +2,32 @@ import { useState } from 'react'
 import { AuthContext } from './AuthContext'
 import { authApi } from '../api/authApi'
 import { clearStoredSession, getStoredSession, setStoredSession } from '../api/authStorage'
+import { decodeJwtPayload } from '../api/jwt'
+
+function buildSession(data) {
+  const claims = decodeJwtPayload(data.token)
+  return {
+    token: data.token,
+    username: data.username,
+    role: data.role,
+    expiresAt: data.expiresAt,
+    customerId: claims?.customerId ?? null,
+  }
+}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => getStoredSession())
 
   async function login(username, password) {
     const data = await authApi.login({ username, password })
-    const nextSession = {
-      token: data.token,
-      username: data.username,
-      role: data.role,
-      expiresAt: data.expiresAt,
-    }
+    const nextSession = buildSession(data)
     setStoredSession(nextSession)
     setSession(nextSession)
   }
 
   async function register(username, email, password) {
     const data = await authApi.register({ username, email, password })
-    const nextSession = {
-      token: data.token,
-      username: data.username,
-      role: data.role,
-      expiresAt: data.expiresAt,
-    }
+    const nextSession = buildSession(data)
     setStoredSession(nextSession)
     setSession(nextSession)
   }
@@ -36,7 +38,9 @@ export function AuthProvider({ children }) {
   }
 
   const value = {
-    user: session ? { username: session.username, role: session.role } : null,
+    user: session
+      ? { username: session.username, role: session.role, customerId: session.customerId }
+      : null,
     isAuthenticated: Boolean(session),
     login,
     register,

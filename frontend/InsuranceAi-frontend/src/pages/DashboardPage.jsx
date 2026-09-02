@@ -9,6 +9,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { customerApi } from '../api/customerApi'
 import { policyApi } from '../api/policyApi'
 import { claimApi } from '../api/claimApi'
+import tableStyles from '../components/ui/Table.module.css'
 import styles from './DashboardPage.module.css'
 
 const RENEWAL_WINDOW_DAYS = 30
@@ -103,8 +104,8 @@ export function DashboardPage() {
                 message={`No active policies end within the next ${RENEWAL_WINDOW_DAYS} days.`}
               />
             ) : (
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
+              <div className={tableStyles.tableWrapper}>
+                <table className={tableStyles.table}>
                   <thead>
                     <tr>
                       <th>Policy Number</th>
