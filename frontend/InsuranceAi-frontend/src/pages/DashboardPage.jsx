@@ -3,9 +3,11 @@ import { PageHeader } from '../components/layout/PageHeader'
 import { Card } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { StatusBreakdownBar } from '../components/ui/StatusBreakdownBar'
 import { Spinner } from '../components/ui/Spinner'
 import { ErrorState } from '../components/ui/ErrorState'
 import { EmptyState } from '../components/ui/EmptyState'
+import { ClaimIcon, PolicyIcon, UsersIcon } from '../components/ui/Icon'
 import { customerApi } from '../api/customerApi'
 import { policyApi } from '../api/policyApi'
 import { claimApi } from '../api/claimApi'
@@ -42,17 +44,34 @@ export function DashboardPage() {
 
         if (cancelled) return
 
+        const countPolicies = (status) => policies.content.filter((p) => p.status === status).length
+        const countClaims = (status) => claims.content.filter((c) => c.status === status).length
+
         setState({
           status: 'success',
           error: null,
           data: {
             totalCustomers: customers.totalElements,
             totalPolicies: policies.totalElements,
-            activePolicies: policies.content.filter((p) => p.status === 'ACTIVE').length,
+            activePolicies: countPolicies('ACTIVE'),
             totalClaims: claims.totalElements,
             pendingClaims: claims.content.filter((c) => PENDING_CLAIM_STATUSES.has(c.status))
               .length,
             expiringPolicies,
+            policyStatusBreakdown: [
+              { label: 'Active', count: countPolicies('ACTIVE'), tone: 'success' },
+              { label: 'Draft', count: countPolicies('DRAFT'), tone: 'warning' },
+              { label: 'Expired', count: countPolicies('EXPIRED'), tone: 'neutral' },
+              { label: 'Lapsed', count: countPolicies('LAPSED'), tone: 'neutral' },
+              { label: 'Cancelled', count: countPolicies('CANCELLED'), tone: 'danger' },
+            ],
+            claimStatusBreakdown: [
+              { label: 'Submitted', count: countClaims('SUBMITTED'), tone: 'warning' },
+              { label: 'Under Review', count: countClaims('UNDER_REVIEW'), tone: 'warning' },
+              { label: 'Approved', count: countClaims('APPROVED'), tone: 'success' },
+              { label: 'Paid', count: countClaims('PAID'), tone: 'success' },
+              { label: 'Rejected', count: countClaims('REJECTED'), tone: 'danger' },
+            ],
           },
         })
       } catch (err) {
@@ -90,11 +109,20 @@ export function DashboardPage() {
       {state.status === 'success' && (
         <>
           <div className={styles.statGrid}>
-            <StatCard label="Total Customers" value={state.data.totalCustomers} />
-            <StatCard label="Total Policies" value={state.data.totalPolicies} />
-            <StatCard label="Active Policies" value={state.data.activePolicies} />
-            <StatCard label="Total Claims" value={state.data.totalClaims} />
-            <StatCard label="Pending Claims" value={state.data.pendingClaims} />
+            <StatCard label="Total Customers" value={state.data.totalCustomers} icon={UsersIcon} tone="primary" />
+            <StatCard label="Total Policies" value={state.data.totalPolicies} icon={PolicyIcon} tone="primary" />
+            <StatCard label="Active Policies" value={state.data.activePolicies} icon={PolicyIcon} tone="success" />
+            <StatCard label="Total Claims" value={state.data.totalClaims} icon={ClaimIcon} tone="primary" />
+            <StatCard label="Pending Claims" value={state.data.pendingClaims} icon={ClaimIcon} tone="warning" />
+          </div>
+
+          <div className={styles.breakdownGrid}>
+            <Card>
+              <StatusBreakdownBar title="Policies by Status" segments={state.data.policyStatusBreakdown} />
+            </Card>
+            <Card>
+              <StatusBreakdownBar title="Claims by Status" segments={state.data.claimStatusBreakdown} />
+            </Card>
           </div>
 
           <Card title={`Policies Approaching Renewal (next ${RENEWAL_WINDOW_DAYS} days)`}>

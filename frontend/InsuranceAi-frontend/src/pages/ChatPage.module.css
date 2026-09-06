@@ -15,17 +15,18 @@
 }
 
 .agentAvatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--color-primary);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--gradient-primary);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.78rem;
+  font-weight: 700;
+  font-size: 0.7rem;
   flex-shrink: 0;
+  box-shadow: var(--shadow-glow);
 }
 
 .agentName {
@@ -73,19 +74,22 @@
 }
 
 .suggestionChip {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--color-surface);
-  font-size: 0.85rem;
-  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .suggestionChip:hover {
-  background: var(--color-bg);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary-soft-text);
+  transform: translateY(-1px);
 }
 
 .suggestionChip:focus-visible {
@@ -154,13 +158,14 @@
 }
 
 .bubbleUser {
-  background: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   border-bottom-right-radius: var(--space-1);
+  box-shadow: var(--shadow-sm);
 }
 
 .bubbleAssistant {
-  background: var(--color-bg);
+  background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
   color: var(--color-text);
   border-bottom-left-radius: var(--space-1);
@@ -271,9 +276,9 @@
 }
 
 .textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+  outline: none;
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
 .textarea:disabled {
@@ -282,23 +287,27 @@
 
 .sendButton {
   padding: var(--space-3) var(--space-5);
-  background: var(--color-primary);
+  background: var(--gradient-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
-  font-weight: 500;
-  font-size: 0.9rem;
+  font-weight: 600;
+  font-size: var(--text-sm);
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .sendButton:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: var(--gradient-primary-hover);
+  transform: translateY(-1px);
 }
 
 .sendButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .hint {

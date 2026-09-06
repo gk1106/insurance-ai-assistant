@@ -1,5 +1,12 @@
 import { useAuth } from '../../hooks/useAuth'
+import { LogoutIcon, MenuIcon } from '../ui/Icon'
+import { ThemeToggle } from '../ui/ThemeToggle'
 import styles from './Header.module.css'
+
+function initialsFor(username) {
+  if (!username) return '?'
+  return username.slice(0, 2).toUpperCase()
+}
 
 export function Header({ onMenuClick }) {
   const { user, logout } = useAuth()
@@ -12,17 +19,23 @@ export function Header({ onMenuClick }) {
         onClick={onMenuClick}
         aria-label="Toggle navigation"
       >
-        <span className={styles.bar} />
-        <span className={styles.bar} />
-        <span className={styles.bar} />
+        <MenuIcon />
       </button>
 
       <div className={styles.spacer} />
 
       <div className={styles.account}>
-        <span className={styles.accountName}>{user?.username ?? 'Guest'}</span>
+        <ThemeToggle />
+        <div className={styles.avatar} aria-hidden="true">
+          {initialsFor(user?.username)}
+        </div>
+        <div className={styles.accountInfo}>
+          <span className={styles.accountName}>{user?.username ?? 'Guest'}</span>
+          <span className={styles.accountRole}>{user?.role ?? ''}</span>
+        </div>
         <button type="button" className={styles.logoutButton} onClick={logout}>
-          Log out
+          <LogoutIcon width={15} height={15} />
+          <span>Log out</span>
         </button>
       </div>
     </header>

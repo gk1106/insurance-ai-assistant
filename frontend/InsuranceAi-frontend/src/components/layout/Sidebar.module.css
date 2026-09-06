@@ -9,34 +9,72 @@
 }
 
 .brand {
-  font-weight: 600;
-  font-size: 1.05rem;
-  padding: 0 var(--space-4) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) var(--space-5);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-3);
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-glow);
+}
+
+.brandName {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .navList {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .navLink {
-  display: block;
-  padding: var(--space-3) var(--space-4);
-  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 0.95rem;
-  border-left: 3px solid transparent;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.navIcon {
+  flex-shrink: 0;
+  color: var(--color-text-faint);
+  transition: color var(--transition-fast);
 }
 
 .navLink:hover {
-  background: var(--color-bg);
+  background: var(--color-bg-inset);
   color: var(--color-text);
+}
+
+.navLink:hover .navIcon {
+  color: var(--color-text-secondary);
 }
 
 .navLink:focus-visible {
@@ -45,10 +83,13 @@
 }
 
 .active {
+  color: var(--color-primary-soft-text);
+  background: var(--color-primary-soft);
+  font-weight: 600;
+}
+
+.active .navIcon {
   color: var(--color-primary);
-  border-left-color: var(--color-primary);
-  background: var(--color-bg);
-  font-weight: 500;
 }
 
 @media (max-width: 768px) {
@@ -58,10 +99,10 @@
     left: 0;
     bottom: 0;
     z-index: 30;
-    max-width: 80vw;
+    max-width: 82vw;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-base);
+    box-shadow: var(--shadow-lg);
   }
 
   .sidebar.open {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import styles from './RegisterPage.module.css'
 
 function extractErrorMessage(err) {
@@ -38,7 +39,14 @@ export function RegisterPage() {
 
   return (
     <div className={styles.page}>
+      <div className={`${styles.blob} ${styles.blob1}`} aria-hidden="true" />
+      <div className={`${styles.blob} ${styles.blob2}`} aria-hidden="true" />
+      <div className={`${styles.blob} ${styles.blob3}`} aria-hidden="true" />
+
+      <ThemeToggle className={styles.themeToggle} />
+
       <form className={styles.card} onSubmit={handleSubmit}>
+        <div className={styles.brandMark} aria-hidden="true">IA</div>
         <h1 className={styles.title}>Insurance AI Assistant</h1>
         <p className={styles.subtitle}>Create your account</p>
 

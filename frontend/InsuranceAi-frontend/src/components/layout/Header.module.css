@@ -4,7 +4,9 @@
   display: flex;
   align-items: center;
   padding: 0 var(--space-5);
-  background: var(--color-surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
@@ -13,28 +15,21 @@
 
 .menuButton {
   display: none;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
   cursor: pointer;
   padding: 0;
   margin-right: var(--space-3);
 }
 
-.menuButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.bar {
-  display: block;
-  height: 2px;
-  background: var(--color-text);
-  border-radius: 1px;
+.menuButton:hover {
+  background: var(--color-bg-inset);
 }
 
 .spacer {
@@ -44,37 +39,75 @@
 .account {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
+  gap: var(--space-3);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.accountInfo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
 }
 
 .accountName {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: var(--text-sm);
   color: var(--color-text);
+}
+
+.accountRole {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
 }
 
 .logoutButton {
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-3);
-  font-size: 0.85rem;
-  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  margin-left: var(--space-2);
 }
 
 .logoutButton:hover {
-  background: var(--color-bg);
-}
-
-.logoutButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-text);
 }
 
 @media (max-width: 768px) {
   .menuButton {
     display: flex;
+  }
+
+  .accountInfo {
+    display: none;
+  }
+
+  .logoutButton span {
+    display: none;
   }
 }

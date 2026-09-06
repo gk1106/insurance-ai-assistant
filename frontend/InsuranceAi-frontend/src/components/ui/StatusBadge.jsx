@@ -28,5 +28,10 @@ function formatStatus(status) {
 
 export function StatusBadge({ status }) {
   const tone = STATUS_TONE[status] ?? 'neutral'
-  return <span className={`${styles.badge} ${styles[tone]}`}>{formatStatus(status)}</span>
+  return (
+    <span className={`${styles.badge} ${styles[tone]}`}>
+      <span className={styles.dot} aria-hidden="true" />
+      {formatStatus(status)}
+    </span>
+  )
 }
