@@ -104,9 +104,11 @@ Next planned features:
 
 <img width="1919" height="950" alt="image" src="https://github.com/user-attachments/assets/2816a73c-9293-4c2e-bc93-b31b0ba07a37" />
 
-<img width="1919" height="955" alt="image" src="https://github.com/user-attachments/assets/b8d3dd60-386b-448f-808d-f32abcb93813" />
+<img width="1919" height="952" alt="image" src="https://github.com/user-attachments/assets/3e5d693b-c169-4c3a-a195-91b5b181c0ea" />
 
-<img width="1919" height="943" alt="image" src="https://github.com/user-attachments/assets/439c2325-56da-40cc-9b0a-cfb6d9fef00d" />
+<img width="1919" height="948" alt="image" src="https://github.com/user-attachments/assets/07ee8970-b72c-4194-90b7-2bc340ef3563" />
+
+
 
 
 
