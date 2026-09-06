@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/policies', label: 'Policies' },
   { to: '/claims', label: 'Claims' },
   { to: '/renewals', label: 'Renewals' },
+  { to: '/assistant', label: 'AI Assistant' },
 ]
 
 export function Sidebar({ open, onNavigate }) {

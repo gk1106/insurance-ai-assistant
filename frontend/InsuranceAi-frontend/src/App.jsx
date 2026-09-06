@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { PoliciesPage } from './pages/PoliciesPage'
 import { ClaimsPage } from './pages/ClaimsPage'
 import { RenewalsPage } from './pages/RenewalsPage'
+import { ChatPage } from './pages/ChatPage'
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
               <Route path="/policies" element={<PoliciesPage />} />
               <Route path="/claims" element={<ClaimsPage />} />
               <Route path="/renewals" element={<RenewalsPage />} />
+              <Route path="/assistant" element={<ChatPage />} />
             </Route>
           </Route>
 
