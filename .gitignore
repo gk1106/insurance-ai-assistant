@@ -49,3 +49,7 @@ frontend/InsuranceAi-frontend/.env.*
 # IDE
 .vscode/
 .idea/
+
+
+#config
+.env
