@@ -28,6 +28,18 @@ spring:
           # gpt-5-mini and other reasoning-family models (o1/o3/gpt-5.x) only accept the
           # default temperature (1) and reject Spring AI's built-in default of 0.7.
           temperature: 1.0
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+    vectorstore:
+      pgvector:
+        # Must match the embedding model's output size (text-embedding-3-small = 1536) and the
+        # "embedding vector(1536)" column in V4__init_vector_store.sql.
+        dimensions: 1536
+        # Schema is Flyway-owned (V4__init_vector_store.sql), the same as every other table in
+        # this project -- Spring AI must not try to create/alter it itself at startup.
+        initialize-schema: false
 
 server:
   port: 8082
@@ -36,3 +48,9 @@ app:
   jwt:
     secret: ${JWT_SECRET:3xSxKkD1ApUphD6ZMjhfeUAepB1LIDzFXE4xQCaBKGA}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+  rag:
+    # Local filesystem directory scanned for PDFs by RagIngestionService. Relative paths resolve
+    # against the JVM's working directory (the Docker image's WORKDIR is /app; see the
+    # docker-compose.yml volume mount).
+    documents-dir: ${RAG_DOCUMENTS_DIR:documents}

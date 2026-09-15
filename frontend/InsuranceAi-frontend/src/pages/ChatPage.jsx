@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { DocumentIcon } from '../components/ui/Icon'
 import { useAuth } from '../hooks/useAuth'
+import { aiAssistantApi } from '../api/aiAssistantApi'
 import { policyAgentApi } from '../api/policyAgentApi'
 import { claimsAgentApi } from '../api/claimsAgentApi'
 import { renewalAgentApi } from '../api/renewalAgentApi'
@@ -51,14 +53,37 @@ const RENEWAL_SUGGESTIONS = [
   'Get renewal details',
 ]
 
-// Each entry wraps one backend agent endpoint. All UI differences between the two agents (which
-// API to call, which structured field names to read off the response, suggested prompts, copy)
-// are isolated here so the rest of the component stays agent-agnostic.
+const STAFF_ASSISTANT_SUGGESTIONS = [
+  'Show me all active policies',
+  'Find pending claims',
+  'Which policies need renewal?',
+  'Check policy POL-2026-A3F3CF4E and its claims',
+]
+
+const CUSTOMER_ASSISTANT_SUGGESTIONS = [
+  'Show me my policies',
+  'Check my claim status',
+  'Which of my policies are expiring soon?',
+  'My policy is expiring soon and I have a pending claim — what should I do?',
+]
+
+// Each entry wraps one backend agent endpoint. All UI differences between the agents (which API
+// to call, suggested prompts, copy) are isolated here so the rest of the component stays
+// agent-agnostic. None of these carry a fixed "result kind" -- every response is read generically
+// via extractResults, which is what lets a single orchestrator reply render a policy card and a
+// claim card side by side, same as it lets a domain agent's reply render just its own one.
 const AGENT_CONFIG = {
+  orchestrator: {
+    label: 'AI Assistant',
+    initials: 'AI',
+    api: aiAssistantApi,
+    placeholder: 'Ask about policies, claims, or renewals...',
+    subtitle: () => 'Automatically routes your question to the right specialist agent',
+    suggestions: (isStaff) => (isStaff ? STAFF_ASSISTANT_SUGGESTIONS : CUSTOMER_ASSISTANT_SUGGESTIONS),
+  },
   policy: {
     label: 'Policy Agent',
     initials: 'PA',
-    resultKind: 'policy',
     api: policyAgentApi,
     placeholder: 'Ask about a policy...',
     subtitle: (isStaff) => (isStaff ? 'Search, view, create, and update policies' : 'Search and view your policies'),
@@ -67,7 +92,6 @@ const AGENT_CONFIG = {
   claims: {
     label: 'Claims Agent',
     initials: 'CA',
-    resultKind: 'claim',
     api: claimsAgentApi,
     placeholder: 'Ask about a claim...',
     subtitle: (isStaff) => (isStaff ? 'Search, review, and process claims' : 'File and check the status of your claims'),
@@ -76,7 +100,6 @@ const AGENT_CONFIG = {
   renewal: {
     label: 'Renewal Agent',
     initials: 'RA',
-    resultKind: 'renewal',
     api: renewalAgentApi,
     placeholder: 'Ask about a renewal...',
     subtitle: (isStaff) => (isStaff ? 'Search, review, and process renewals' : 'Request and track your policy renewals'),
@@ -349,11 +372,56 @@ function renderListResult(resultKind, data) {
   }
 }
 
+const RESULT_KIND_PLURAL = { policy: 'policies', claim: 'claims', renewal: 'renewals' }
+
+function pluralizeResultKind(kind, count) {
+  return count === 1 ? kind : (RESULT_KIND_PLURAL[kind] ?? `${kind}s`)
+}
+
+// Reads whichever policy/claim/renewal fields are present on a chat response into a flat list of
+// {kind, single, list} entries. A single-domain agent's response only ever has its own domain's
+// fields set, so this naturally yields at most one entry for those; the orchestrator's response
+// can have more than one domain populated at once, so this is what lets the UI render a policy
+// card and a claim card side by side for one combined answer.
+function extractResults(data) {
+  const results = []
+  if (data.policy) results.push({ kind: 'policy', single: data.policy })
+  if (data.policies?.length) results.push({ kind: 'policy', list: data.policies })
+  if (data.claim) results.push({ kind: 'claim', single: data.claim })
+  if (data.claims?.length) results.push({ kind: 'claim', list: data.claims })
+  if (data.renewal) results.push({ kind: 'renewal', single: data.renewal })
+  if (data.renewals?.length) results.push({ kind: 'renewal', list: data.renewals })
+  return results
+}
+
+// Shown below a Knowledge Agent (RAG) answer -- just the document name each retrieved passage
+// came from, as a row of compact chips. Deliberately shows nothing else from the response's
+// `chunks` (no passage text, page number, similarity score, or tool internals) -- that data
+// exists for future use, not for display here. Renders nothing when there are no sources, so it
+// never appears on a Policy/Claims/Renewal answer.
+function SourcesSection({ sources }) {
+  if (!sources?.length) return null
+
+  return (
+    <div className={styles.sourcesSection}>
+      <span className={styles.sourcesLabel}>Sources</span>
+      <div className={styles.sourcesList}>
+        {sources.map((source) => (
+          <span key={source} className={styles.sourceChip}>
+            <DocumentIcon className={styles.sourceChipIcon} width={14} height={14} />
+            {source}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ChatPage() {
   const { user } = useAuth()
   const isStaff = STAFF_ROLES.has(user?.role)
 
-  const [selectedAgent, setSelectedAgent] = useState('policy')
+  const [selectedAgent, setSelectedAgent] = useState('orchestrator')
   const agent = AGENT_CONFIG[selectedAgent]
   const suggestions = agent.suggestions(isStaff)
 
@@ -382,11 +450,11 @@ export function ChatPage() {
     try {
       const prompt = buildPromptWithHistory(historySnapshot, text)
       const data = await AGENT_CONFIG[agentKey].api.chat({ message: prompt })
-      const singleResult = data.policy ?? data.claim ?? data.renewal ?? null
-      const listResult = data.policies ?? data.claims ?? data.renewals ?? null
+      const results = extractResults(data)
+      const sources = Array.isArray(data.sources) ? data.sources : []
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: 'assistant', content: data.reply, singleResult, listResult },
+        { id: makeId(), role: 'assistant', content: data.reply, results, sources },
       ])
       setLastFailedMessage(null)
     } catch (err) {
@@ -446,7 +514,7 @@ export function ChatPage() {
     <>
       <PageHeader
         title="AI Assistant"
-        description="Ask about policies, claims, or renewals in plain language — each agent uses the same tools and permissions as the rest of the app."
+        description="Ask about policies, claims, or renewals in plain language — the AI Assistant automatically routes your question to the right specialist, or pick an agent directly. Every agent uses the same tools and permissions as the rest of the app."
         actions={
           <button type="button" className={formStyles.secondaryButton} onClick={handleNewChat}>
             New Chat
@@ -504,9 +572,8 @@ export function ChatPage() {
           ) : (
             <div className={styles.messageList} ref={messageListRef} role="log" aria-live="polite">
               {messages.map((message) => {
-                const hasSingleResult = Boolean(message.singleResult)
-                const hasListResult = Boolean(message.listResult?.length)
-                const hasStructuredResult = hasSingleResult || hasListResult
+                const results = message.results ?? []
+                const hasStructuredResult = results.length > 0
                 const showBubble = message.role === 'user' || !hasStructuredResult
 
                 return (
@@ -537,23 +604,26 @@ export function ChatPage() {
                         </div>
                       )}
 
-                      {hasSingleResult && (
-                        <>
-                          <p className={styles.resultCaption}>
-                            Here's the {agent.resultKind} you requested.
-                          </p>
-                          {renderSingleResult(agent.resultKind, message.singleResult)}
-                        </>
-                      )}
-                      {hasListResult && (
-                        <>
-                          <p className={styles.resultCaption}>
-                            Found {message.listResult.length} matching{' '}
-                            {message.listResult.length === 1 ? agent.resultKind : `${agent.resultKind}s`}.
-                          </p>
-                          {renderListResult(agent.resultKind, message.listResult)}
-                        </>
-                      )}
+                      {results.map((result, index) => (
+                        <div key={`${result.kind}-${result.single ? 'single' : 'list'}-${index}`}>
+                          {result.single && (
+                            <>
+                              <p className={styles.resultCaption}>Here's the {result.kind} you requested.</p>
+                              {renderSingleResult(result.kind, result.single)}
+                            </>
+                          )}
+                          {result.list && (
+                            <>
+                              <p className={styles.resultCaption}>
+                                Found {result.list.length} matching {pluralizeResultKind(result.kind, result.list.length)}.
+                              </p>
+                              {renderListResult(result.kind, result.list)}
+                            </>
+                          )}
+                        </div>
+                      ))}
+
+                      <SourcesSection sources={message.sources} />
 
                       {message.isError && (
                         <button type="button" className={styles.retryButton} onClick={handleRetry}>

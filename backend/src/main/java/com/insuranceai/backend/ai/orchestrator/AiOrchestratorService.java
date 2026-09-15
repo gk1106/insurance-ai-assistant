@@ -1,9 +1,11 @@
 package com.insuranceai.backend.ai.orchestrator;
 
 import com.insuranceai.backend.ai.claims.ClaimsAgentService;
+import com.insuranceai.backend.ai.knowledge.KnowledgeAgentService;
 import com.insuranceai.backend.ai.orchestrator.dto.AgentChatResponseDto;
 import com.insuranceai.backend.ai.orchestrator.dto.RouteDecision;
 import com.insuranceai.backend.ai.policy.PolicyAgentService;
+import com.insuranceai.backend.ai.rag.dto.RagSearchResultDto;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService;
 import com.insuranceai.backend.claim.dto.ClaimResponseDto;
 import com.insuranceai.backend.policy.dto.PolicyResponseDto;
@@ -23,12 +25,13 @@ import java.util.stream.Collectors;
 /**
  * Top-level entry point for the AI Assistant: figures out which domain agent(s) a request needs,
  * delegates to the existing {@link PolicyAgentService} / {@link ClaimsAgentService} /
- * {@link RenewalAgentService} unchanged, and composes their replies into one response. This class
- * never touches a domain repository/service directly -- it only ever calls the three existing
- * agent services, each of which already owns its own tool-use loop, authorization, and structured
- * result. Routing and (when more than one agent is involved) final-answer composition are each a
- * single, separate LLM call using the shared {@code orchestratorChatClient} -- two small, focused
- * prompts rather than one that tries to do everything.
+ * {@link RenewalAgentService} / {@link KnowledgeAgentService} unchanged, and composes their
+ * replies into one response. This class never touches a domain repository/service (or the vector
+ * store) directly -- it only ever calls the four existing agent services, each of which already
+ * owns its own tool-use loop, authorization, and structured result. Routing and (when more than
+ * one agent is involved) final-answer composition are each a single, separate LLM call using the
+ * shared {@code orchestratorChatClient} -- two small, focused prompts rather than one that tries
+ * to do everything.
  */
 @Service
 public class AiOrchestratorService {
@@ -39,18 +42,25 @@ public class AiOrchestratorService {
             You are the routing layer for an insurance platform's AI assistant. Given the user's
             message, decide which specialist agent(s) must handle it:
 
-            - POLICY: insurance policies -- searching, details, creating, updating, status.
-            - CLAIMS: insurance claims -- searching, details, filing, reviewing/approving/rejecting/
-              paying, status.
-            - RENEWAL: policy renewals -- searching, details, requesting, confirming/rejecting,
+            - POLICY: the caller's own policy records -- searching, details, creating, updating,
               status.
+            - CLAIMS: the caller's own claim records -- searching, details, filing, reviewing/
+              approving/rejecting/paying, status.
+            - RENEWAL: the caller's own renewal records -- searching, details, requesting,
+              confirming/rejecting, status.
+            - KNOWLEDGE: general, document-based insurance questions that are not about the
+              caller's own specific records -- coverage explanations, what's required to file a
+              claim, renewal rules, FAQs, how a process works. Use this whenever the question is
+              "how does X work" / "what is covered" / "what documents are needed" rather than "show
+              MY policy/claim/renewal".
 
             Return only the agent(s) actually needed to satisfy the request, in the order they
             should run. Most requests need exactly one agent. Return more than one only when the
             request genuinely spans multiple domains in the same message (for example, asking about
-            a policy AND a pending claim together). If the request is a greeting, small talk, or
-            unrelated to insurance, or you genuinely cannot tell which domain it belongs to, return
-            an empty list. Always give a one-sentence reason for your choice.
+            a policy AND a pending claim together, or asking a general coverage question alongside a
+            request to see their own policy). If the request is a greeting, small talk, or unrelated
+            to insurance, or you genuinely cannot tell which domain it belongs to, return an empty
+            list. Always give a one-sentence reason for your choice.
             """;
 
     private static final String SYNTHESIS_SYSTEM_PROMPT = """
@@ -68,15 +78,18 @@ public class AiOrchestratorService {
     private final PolicyAgentService policyAgentService;
     private final ClaimsAgentService claimsAgentService;
     private final RenewalAgentService renewalAgentService;
+    private final KnowledgeAgentService knowledgeAgentService;
 
     public AiOrchestratorService(ChatClient orchestratorChatClient,
                                   PolicyAgentService policyAgentService,
                                   ClaimsAgentService claimsAgentService,
-                                  RenewalAgentService renewalAgentService) {
+                                  RenewalAgentService renewalAgentService,
+                                  KnowledgeAgentService knowledgeAgentService) {
         this.orchestratorChatClient = orchestratorChatClient;
         this.policyAgentService = policyAgentService;
         this.claimsAgentService = claimsAgentService;
         this.renewalAgentService = renewalAgentService;
+        this.knowledgeAgentService = knowledgeAgentService;
     }
 
     public AgentChatResponseDto chat(UserPrincipal principal, String message) {
@@ -86,9 +99,9 @@ public class AiOrchestratorService {
         if (agents.isEmpty()) {
             log.info("orchestrator chat end caller={} outcome=no-agent-matched", principal.getUsername());
             return new AgentChatResponseDto(
-                    "I can help with policies, claims, or renewals -- could you let me know which one "
-                            + "this is about?",
-                    null, null, null, null, null, null);
+                    "I can help with policies, claims, renewals, or general insurance questions -- "
+                            + "could you let me know which one this is about?",
+                    null, null, null, null, null, null, null, null);
         }
 
         List<AgentOutcome> outcomes = new ArrayList<>();
@@ -169,6 +182,10 @@ public class AiOrchestratorService {
                     var r = renewalAgentService.chat(principal, message);
                     yield AgentOutcome.ofRenewal(r.reply(), r.renewal(), r.renewals());
                 }
+                case KNOWLEDGE -> {
+                    var r = knowledgeAgentService.chat(principal, message);
+                    yield AgentOutcome.ofKnowledge(r.reply(), r.sources(), r.chunks());
+                }
             };
             log.info("orchestrator delegate caller={} agent={} outcome=success", principal.getUsername(), agent);
             return outcome;
@@ -215,6 +232,8 @@ public class AiOrchestratorService {
         List<ClaimResponseDto> claims = null;
         RenewalResponseDto renewal = null;
         List<RenewalResponseDto> renewals = null;
+        List<String> sources = null;
+        List<RagSearchResultDto> chunks = null;
 
         for (AgentOutcome outcome : successes) {
             policy = policy != null ? policy : outcome.policy();
@@ -223,9 +242,11 @@ public class AiOrchestratorService {
             claims = claims != null ? claims : outcome.claims();
             renewal = renewal != null ? renewal : outcome.renewal();
             renewals = renewals != null ? renewals : outcome.renewals();
+            sources = sources != null ? sources : outcome.sources();
+            chunks = chunks != null ? chunks : outcome.chunks();
         }
 
-        return new AgentChatResponseDto(reply, policy, policies, claim, claims, renewal, renewals);
+        return new AgentChatResponseDto(reply, policy, policies, claim, claims, renewal, renewals, sources, chunks);
     }
 
     /**
@@ -242,22 +263,32 @@ public class AiOrchestratorService {
             List<ClaimResponseDto> claims,
             RenewalResponseDto renewal,
             List<RenewalResponseDto> renewals,
+            List<String> sources,
+            List<RagSearchResultDto> chunks,
             RuntimeException error
     ) {
         static AgentOutcome ofPolicy(String reply, PolicyResponseDto policy, List<PolicyResponseDto> policies) {
-            return new AgentOutcome(DomainAgent.POLICY, true, reply, policy, policies, null, null, null, null, null);
+            return new AgentOutcome(DomainAgent.POLICY, true, reply, policy, policies, null, null, null, null, null,
+                    null, null);
         }
 
         static AgentOutcome ofClaims(String reply, ClaimResponseDto claim, List<ClaimResponseDto> claims) {
-            return new AgentOutcome(DomainAgent.CLAIMS, true, reply, null, null, claim, claims, null, null, null);
+            return new AgentOutcome(DomainAgent.CLAIMS, true, reply, null, null, claim, claims, null, null, null,
+                    null, null);
         }
 
         static AgentOutcome ofRenewal(String reply, RenewalResponseDto renewal, List<RenewalResponseDto> renewals) {
-            return new AgentOutcome(DomainAgent.RENEWAL, true, reply, null, null, null, null, renewal, renewals, null);
+            return new AgentOutcome(DomainAgent.RENEWAL, true, reply, null, null, null, null, renewal, renewals,
+                    null, null, null);
+        }
+
+        static AgentOutcome ofKnowledge(String reply, List<String> sources, List<RagSearchResultDto> chunks) {
+            return new AgentOutcome(DomainAgent.KNOWLEDGE, true, reply, null, null, null, null, null, null, sources,
+                    chunks, null);
         }
 
         static AgentOutcome failed(DomainAgent agent, RuntimeException error) {
-            return new AgentOutcome(agent, false, null, null, null, null, null, null, null, error);
+            return new AgentOutcome(agent, false, null, null, null, null, null, null, null, null, null, error);
         }
     }
 }

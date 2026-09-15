@@ -384,6 +384,47 @@
   padding: 0 var(--space-1);
 }
 
+/* RAG/knowledge-base sources -- a compact row of chips below a Knowledge Agent answer, same
+   pill shape as .suggestionChip but smaller and non-interactive (this is a label, not a button). */
+
+.sourcesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sourcesLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sourcesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sourceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-inset);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.sourceChipIcon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
 /* Composer */
 
 .composer {

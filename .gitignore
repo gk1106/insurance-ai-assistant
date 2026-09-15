@@ -53,3 +53,7 @@ frontend/InsuranceAi-frontend/.env.*
 
 #config
 .env
+
+# RAG source documents -- large/potentially sensitive binaries, not meant to be committed.
+# The directory itself (and its README) stays tracked; only the PDFs are ignored.
+backend/documents/*.pdf

@@ -12,9 +12,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: admin
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
+    volumes:
+      # RAG source PDFs -- drop files here on the host, then POST /api/ai/rag/ingest.
+      - ./documents:/app/documents
 
   postgres:
-    image: postgres:16
+    # pgvector/pgvector is the plain postgres:16 image with the pgvector extension precompiled
+    # in -- same data directory format, so this is a drop-in swap. Needed for the RAG pipeline's
+    # VectorStore (see V4__init_vector_store.sql).
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: insurance_ai
       POSTGRES_USER: postgres

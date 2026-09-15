@@ -119,6 +119,16 @@ export function MoonIcon(props) {
   )
 }
 
+export function DocumentIcon(props) {
+  return (
+    <svg {...BASE_PROPS} {...props}>
+      <path d="M6 3.5h8l4 4V20a.75.75 0 0 1-.75.75H6a.75.75 0 0 1-.75-.75V4.25A.75.75 0 0 1 6 3.5Z" />
+      <path d="M14 3.5V8h4" />
+      <path d="M8 12.5h6M8 16h4" />
+    </svg>
+  )
+}
+
 export function InboxIcon(props) {
   return (
     <svg {...BASE_PROPS} {...props}>
