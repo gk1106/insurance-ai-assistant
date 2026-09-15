@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import { useAuth } from '../hooks/useAuth'
 import { policyAgentApi } from '../api/policyAgentApi'
 import { claimsAgentApi } from '../api/claimsAgentApi'
+import { renewalAgentApi } from '../api/renewalAgentApi'
 import formStyles from '../components/ui/Form.module.css'
 import styles from './ChatPage.module.css'
 
@@ -40,6 +41,16 @@ const CUSTOMER_CLAIMS_SUGGESTIONS = [
   'Get claim details',
 ]
 
+// Renewals have no "list all" / "list mine" capability on the backend at all (every search
+// requires a specific policyId, for every role) -- so these prompts are the same regardless of
+// role; the agent will ask which policy if one isn't given, same as it would for a typed question.
+const RENEWAL_SUGGESTIONS = [
+  'Show my upcoming renewals',
+  'Which policies expire this month?',
+  'Check renewal status',
+  'Get renewal details',
+]
+
 // Each entry wraps one backend agent endpoint. All UI differences between the two agents (which
 // API to call, which structured field names to read off the response, suggested prompts, copy)
 // are isolated here so the rest of the component stays agent-agnostic.
@@ -61,6 +72,15 @@ const AGENT_CONFIG = {
     placeholder: 'Ask about a claim...',
     subtitle: (isStaff) => (isStaff ? 'Search, review, and process claims' : 'File and check the status of your claims'),
     suggestions: (isStaff) => (isStaff ? STAFF_CLAIMS_SUGGESTIONS : CUSTOMER_CLAIMS_SUGGESTIONS),
+  },
+  renewal: {
+    label: 'Renewal Agent',
+    initials: 'RA',
+    resultKind: 'renewal',
+    api: renewalAgentApi,
+    placeholder: 'Ask about a renewal...',
+    subtitle: (isStaff) => (isStaff ? 'Search, review, and process renewals' : 'Request and track your policy renewals'),
+    suggestions: () => RENEWAL_SUGGESTIONS,
   },
 }
 
@@ -234,6 +254,101 @@ function ClaimListSummary({ claims }) {
   )
 }
 
+// The primary response component for a single renewal lookup/create/decide result. Note: renewals
+// carry no "current premium" or "policy type" in the backend model -- those live on the Policy,
+// not the Renewal, and the Renewal Agent's response never includes them. Previous End Date and the
+// requested/decided timestamp are shown in their place, since those are real fields.
+function RenewalSummary({ renewal }) {
+  return (
+    <div className={styles.resultCard}>
+      <div className={styles.resultCardHeader}>
+        <div>
+          <span className={styles.resultPrimaryLabel}>{renewal.policyNumber}</span>
+        </div>
+        <StatusBadge status={renewal.status} />
+      </div>
+      <div className={styles.resultGrid}>
+        <div className={styles.resultGridItem}>
+          <span className={styles.resultLabel}>Renewal Premium</span>
+          <strong>{money(renewal.revisedPremiumAmount)}</strong>
+        </div>
+        <div className={styles.resultGridItem}>
+          <span className={styles.resultLabel}>Previous End Date</span>
+          <strong>{renewal.previousEndDate}</strong>
+        </div>
+        <div className={styles.resultGridItem}>
+          <span className={styles.resultLabel}>Renewal Date</span>
+          <strong>{renewal.newEndDate}</strong>
+        </div>
+        <div className={styles.resultGridItem}>
+          <span className={styles.resultLabel}>{renewal.decidedAt ? 'Decided' : 'Requested'}</span>
+          <strong>{formatDate(renewal.decidedAt ?? renewal.requestedAt)}</strong>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// The primary response component for a multi-renewal search result -- same compact card-list
+// shape as PolicyListSummary / ClaimListSummary, capped the same way.
+function RenewalListSummary({ renewals }) {
+  if (renewals.length === 0) return null
+  const shown = renewals.slice(0, MAX_RESULTS_SHOWN)
+  const remaining = renewals.length - shown.length
+
+  return (
+    <div className={styles.resultListWrapper}>
+      <div className={styles.resultList}>
+        {shown.map((renewal) => (
+          <div key={renewal.id} className={styles.resultListItem}>
+            <div>
+              <span className={styles.resultPrimaryLabel}>{renewal.policyNumber}</span>
+              <span className={styles.resultSecondaryLabel}>{renewal.newEndDate}</span>
+            </div>
+            <div className={styles.resultListItemMeta}>
+              <span className={styles.resultLabel}>{money(renewal.revisedPremiumAmount)}</span>
+              <StatusBadge status={renewal.status} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {remaining > 0 && (
+        <p className={styles.resultListFooter}>
+          +{remaining} more &mdash; ask to narrow your search (by policy or status) to see them.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Dispatches to the right result component for whichever agent is selected -- keeps the render
+// logic below from growing a nested ternary per agent as more agents are added.
+function renderSingleResult(resultKind, data) {
+  switch (resultKind) {
+    case 'policy':
+      return <PolicySummary policy={data} />
+    case 'claim':
+      return <ClaimSummary claim={data} />
+    case 'renewal':
+      return <RenewalSummary renewal={data} />
+    default:
+      return null
+  }
+}
+
+function renderListResult(resultKind, data) {
+  switch (resultKind) {
+    case 'policy':
+      return <PolicyListSummary policies={data} />
+    case 'claim':
+      return <ClaimListSummary claims={data} />
+    case 'renewal':
+      return <RenewalListSummary renewals={data} />
+    default:
+      return null
+  }
+}
+
 export function ChatPage() {
   const { user } = useAuth()
   const isStaff = STAFF_ROLES.has(user?.role)
@@ -267,8 +382,8 @@ export function ChatPage() {
     try {
       const prompt = buildPromptWithHistory(historySnapshot, text)
       const data = await AGENT_CONFIG[agentKey].api.chat({ message: prompt })
-      const singleResult = data.policy ?? data.claim ?? null
-      const listResult = data.policies ?? data.claims ?? null
+      const singleResult = data.policy ?? data.claim ?? data.renewal ?? null
+      const listResult = data.policies ?? data.claims ?? data.renewals ?? null
       setMessages((prev) => [
         ...prev,
         { id: makeId(), role: 'assistant', content: data.reply, singleResult, listResult },
@@ -331,7 +446,7 @@ export function ChatPage() {
     <>
       <PageHeader
         title="AI Assistant"
-        description="Ask about policies or claims in plain language — each agent uses the same tools and permissions as the rest of the app."
+        description="Ask about policies, claims, or renewals in plain language — each agent uses the same tools and permissions as the rest of the app."
         actions={
           <button type="button" className={formStyles.secondaryButton} onClick={handleNewChat}>
             New Chat
@@ -427,11 +542,7 @@ export function ChatPage() {
                           <p className={styles.resultCaption}>
                             Here's the {agent.resultKind} you requested.
                           </p>
-                          {agent.resultKind === 'policy' ? (
-                            <PolicySummary policy={message.singleResult} />
-                          ) : (
-                            <ClaimSummary claim={message.singleResult} />
-                          )}
+                          {renderSingleResult(agent.resultKind, message.singleResult)}
                         </>
                       )}
                       {hasListResult && (
@@ -440,11 +551,7 @@ export function ChatPage() {
                             Found {message.listResult.length} matching{' '}
                             {message.listResult.length === 1 ? agent.resultKind : `${agent.resultKind}s`}.
                           </p>
-                          {agent.resultKind === 'policy' ? (
-                            <PolicyListSummary policies={message.listResult} />
-                          ) : (
-                            <ClaimListSummary claims={message.listResult} />
-                          )}
+                          {renderListResult(agent.resultKind, message.listResult)}
                         </>
                       )}
 
