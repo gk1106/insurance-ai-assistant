@@ -8,10 +8,19 @@
 .chatHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-3);
+  row-gap: var(--space-3);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-3);
+}
+
+.agentIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .agentAvatar {
@@ -37,6 +46,44 @@
 .agentSubtitle {
   font-size: 0.78rem;
   color: var(--color-text-muted);
+}
+
+/* Agent selector -- a segmented pill toggle in the chat header */
+
+.agentSwitcher {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+  gap: 2px;
+}
+
+.agentTab {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.agentTab:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.agentTabActive {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+.agentTab:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Empty state */
@@ -228,9 +275,10 @@
   }
 }
 
-/* Structured policy results -- the primary response component. A left accent border and
-   dedicated header/shadow give it more visual weight than a plain chat bubble, since this (not
-   the model's prose) is meant to be what the user actually reads. */
+/* Structured results (policy or claim) -- the primary response component. A left accent border
+   and dedicated header/shadow give it more visual weight than a plain chat bubble, since this
+   (not the model's prose) is meant to be what the user actually reads. These classes are shared
+   between the Policy Agent and Claims Agent result cards -- same visual language for both. */
 
 .resultCaption {
   margin: 0;
@@ -238,14 +286,14 @@
   color: var(--color-text-muted);
 }
 
-.policyNumber {
+.resultPrimaryLabel {
   font-weight: 700;
   font-size: var(--text-sm);
   color: var(--color-text);
   letter-spacing: -0.01em;
 }
 
-.policyType {
+.resultSecondaryLabel {
   margin-left: var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -254,14 +302,14 @@
   letter-spacing: 0.04em;
 }
 
-.policyCardLabel {
+.resultLabel {
   display: block;
   color: var(--color-text-muted);
   font-size: var(--text-xs);
   margin-bottom: 2px;
 }
 
-.policyCard {
+.resultCard {
   width: 100%;
   min-width: 280px;
   border: 1px solid var(--color-border);
@@ -272,7 +320,7 @@
   overflow: hidden;
 }
 
-.policyCardHeader {
+.resultCardHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -282,7 +330,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.policyGrid {
+.resultGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3) var(--space-4);
@@ -290,11 +338,11 @@
   font-size: var(--text-sm);
 }
 
-.policyGridItem strong {
+.resultGridItem strong {
   color: var(--color-text);
 }
 
-.policyListWrapper {
+.resultListWrapper {
   width: 100%;
   min-width: 280px;
   display: flex;
@@ -302,13 +350,13 @@
   gap: var(--space-2);
 }
 
-.policyList {
+.resultList {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.policyListItem {
+.resultListItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -321,7 +369,7 @@
   box-shadow: var(--shadow-xs);
 }
 
-.policyListItemMeta {
+.resultListItemMeta {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -329,7 +377,7 @@
   color: var(--color-text-muted);
 }
 
-.policyListFooter {
+.resultListFooter {
   margin: 0;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
@@ -409,6 +457,18 @@
     height: 72vh;
   }
 
+  .chatHeader {
+    justify-content: flex-start;
+  }
+
+  .agentSwitcher {
+    width: 100%;
+  }
+
+  .agentTab {
+    flex: 1;
+  }
+
   .messageColumn {
     max-width: 88%;
   }
@@ -422,12 +482,12 @@
     width: 100%;
   }
 
-  .policyCard,
-  .policyListWrapper {
+  .resultCard,
+  .resultListWrapper {
     min-width: 0;
   }
 
-  .policyGrid {
+  .resultGrid {
     grid-template-columns: 1fr 1fr;
   }
 }
