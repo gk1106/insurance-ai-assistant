@@ -10,6 +10,7 @@ import styles from './ChatPage.module.css'
 const STAFF_ROLES = new Set(['ADMIN', 'AGENT'])
 const MAX_TEXTAREA_HEIGHT = 160
 const HISTORY_TURNS_FOR_CONTEXT = 6
+const MAX_POLICIES_SHOWN = 8
 
 const STAFF_SUGGESTIONS = [
   'Show me all active policies',
@@ -30,7 +31,9 @@ function errorMessage(err) {
 
 // The backend endpoint is single-turn/stateless by design (see backend/.../PolicyAgentService) --
 // it has no memory of earlier messages. To keep follow-up questions coherent without touching the
-// backend, recent turns are stitched into the outgoing message as plain-text context.
+// backend, recent turns are stitched into the outgoing message as plain-text context. The full
+// reply text is kept here even though the UI only shows a short caption when a card is rendered
+// (see hasStructuredResult below), so the agent still gets its own prior answers as context.
 function buildPromptWithHistory(history, newMessage) {
   const recent = history.slice(-HISTORY_TURNS_FOR_CONTEXT).filter((m) => !m.isError)
   if (recent.length === 0) return newMessage
@@ -45,49 +48,72 @@ function makeId() {
   return crypto.randomUUID()
 }
 
+function money(amount) {
+  return `$${Number(amount).toLocaleString()}`
+}
+
+// The primary response component for a single policy lookup/create/update result. Only the
+// fields useful at a glance are shown -- no raw DTO fields, no tool/agent internals.
 function PolicySummary({ policy }) {
   return (
     <div className={styles.policyCard}>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>Policy Number</span>
-        <strong>{policy.policyNumber}</strong>
-      </div>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>Type</span>
-        <span>{policy.policyType}</span>
-      </div>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>Status</span>
+      <div className={styles.policyCardHeader}>
+        <div>
+          <span className={styles.policyNumber}>{policy.policyNumber}</span>
+          <span className={styles.policyType}>{policy.policyType}</span>
+        </div>
         <StatusBadge status={policy.status} />
       </div>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>Coverage</span>
-        <span>${Number(policy.coverageAmount).toLocaleString()}</span>
-      </div>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>Premium</span>
-        <span>${Number(policy.premiumAmount).toLocaleString()}</span>
-      </div>
-      <div className={styles.policyCardRow}>
-        <span className={styles.policyCardLabel}>End Date</span>
-        <span>{policy.endDate}</span>
+      <div className={styles.policyGrid}>
+        <div className={styles.policyGridItem}>
+          <span className={styles.policyCardLabel}>Coverage</span>
+          <strong>{money(policy.coverageAmount)}</strong>
+        </div>
+        <div className={styles.policyGridItem}>
+          <span className={styles.policyCardLabel}>Premium</span>
+          <strong>{money(policy.premiumAmount)}</strong>
+        </div>
+        <div className={styles.policyGridItem}>
+          <span className={styles.policyCardLabel}>Start Date</span>
+          <strong>{policy.startDate}</strong>
+        </div>
+        <div className={styles.policyGridItem}>
+          <span className={styles.policyCardLabel}>End Date</span>
+          <strong>{policy.endDate}</strong>
+        </div>
       </div>
     </div>
   )
 }
 
+// The primary response component for a multi-policy search result -- a compact, scannable list
+// of cards rather than a wall of text. Capped so a broad search doesn't flood the conversation.
 function PolicyListSummary({ policies }) {
   if (policies.length === 0) return null
+  const shown = policies.slice(0, MAX_POLICIES_SHOWN)
+  const remaining = policies.length - shown.length
+
   return (
-    <div className={styles.policyCard}>
-      {policies.map((policy) => (
-        <div key={policy.id} className={styles.policyCardRow}>
-          <span>
-            {policy.policyNumber} — {policy.policyType}
-          </span>
-          <StatusBadge status={policy.status} />
-        </div>
-      ))}
+    <div className={styles.policyListWrapper}>
+      <div className={styles.policyList}>
+        {shown.map((policy) => (
+          <div key={policy.id} className={styles.policyListItem}>
+            <div>
+              <span className={styles.policyNumber}>{policy.policyNumber}</span>
+              <span className={styles.policyType}>{policy.policyType}</span>
+            </div>
+            <div className={styles.policyListItemMeta}>
+              <span className={styles.policyCardLabel}>{policy.endDate}</span>
+              <StatusBadge status={policy.status} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {remaining > 0 && (
+        <p className={styles.policyListFooter}>
+          +{remaining} more &mdash; ask to narrow your search (by type, status, or customer) to see them.
+        </p>
+      )}
     </div>
   )
 }
@@ -216,40 +242,65 @@ export function ChatPage() {
             </div>
           ) : (
             <div className={styles.messageList} ref={messageListRef} role="log" aria-live="polite">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`${styles.messageRow} ${message.role === 'user' ? styles.rowUser : styles.rowAssistant}`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className={styles.messageAvatar} aria-hidden="true">
-                      AI
-                    </div>
-                  )}
-                  <div className={styles.messageColumn}>
-                    <div
-                      className={`${styles.bubble} ${
-                        message.role === 'user'
-                          ? styles.bubbleUser
-                          : message.isError
-                            ? styles.bubbleError
-                            : styles.bubbleAssistant
-                      }`}
-                    >
-                      {message.content}
-                    </div>
+              {messages.map((message) => {
+                const hasPolicy = Boolean(message.policy)
+                const hasPolicies = Boolean(message.policies?.length)
+                const hasStructuredResult = hasPolicy || hasPolicies
+                const showBubble = message.role === 'user' || !hasStructuredResult
 
-                    {message.policy && <PolicySummary policy={message.policy} />}
-                    {message.policies && <PolicyListSummary policies={message.policies} />}
-
-                    {message.isError && (
-                      <button type="button" className={styles.retryButton} onClick={handleRetry}>
-                        Retry
-                      </button>
+                return (
+                  <div
+                    key={message.id}
+                    className={`${styles.messageRow} ${message.role === 'user' ? styles.rowUser : styles.rowAssistant}`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className={styles.messageAvatar} aria-hidden="true">
+                        AI
+                      </div>
                     )}
+                    <div className={styles.messageColumn}>
+                      {/* When a structured result is available, the card below is the primary
+                          response -- the model's full paragraph is kept in state (for follow-up
+                          context) but not shown, so the conversation stays scannable. */}
+                      {showBubble && (
+                        <div
+                          className={`${styles.bubble} ${
+                            message.role === 'user'
+                              ? styles.bubbleUser
+                              : message.isError
+                                ? styles.bubbleError
+                                : styles.bubbleAssistant
+                          }`}
+                        >
+                          {message.content}
+                        </div>
+                      )}
+
+                      {hasPolicy && (
+                        <>
+                          <p className={styles.resultCaption}>Here's the policy you requested.</p>
+                          <PolicySummary policy={message.policy} />
+                        </>
+                      )}
+                      {hasPolicies && (
+                        <>
+                          <p className={styles.resultCaption}>
+                            Found {message.policies.length}{' '}
+                            {message.policies.length === 1 ? 'matching policy' : 'matching policies'}.
+                          </p>
+                          <PolicyListSummary policies={message.policies} />
+                        </>
+                      )}
+
+                      {message.isError && (
+                        <button type="button" className={styles.retryButton} onClick={handleRetry}>
+                          Retry
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {isSending && (
                 <div className={`${styles.messageRow} ${styles.rowAssistant}`}>

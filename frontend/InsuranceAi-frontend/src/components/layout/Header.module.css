@@ -58,8 +58,8 @@
 
 .accountInfo {
   display: flex;
-  flex-direction: column;
-  line-height: 1.25;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .accountName {
@@ -68,12 +68,15 @@
   color: var(--color-text);
 }
 
-.accountRole {
-  font-size: 0.7rem;
-  font-weight: 600;
+.roleBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-text-faint);
+  color: var(--color-primary-soft-text);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
 }
 
 .logoutButton {

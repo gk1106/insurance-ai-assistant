@@ -31,7 +31,7 @@ export function Header({ onMenuClick }) {
         </div>
         <div className={styles.accountInfo}>
           <span className={styles.accountName}>{user?.username ?? 'Guest'}</span>
-          <span className={styles.accountRole}>{user?.role ?? ''}</span>
+          {user?.role && <span className={styles.roleBadge}>{user.role}</span>}
         </div>
         <button type="button" className={styles.logoutButton} onClick={logout}>
           <LogoutIcon width={15} height={15} />
