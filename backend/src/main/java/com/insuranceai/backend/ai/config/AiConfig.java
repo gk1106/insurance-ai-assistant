@@ -79,4 +79,15 @@ public class AiConfig {
                 .defaultSystem(RENEWAL_AGENT_SYSTEM_PROMPT)
                 .build();
     }
+
+    /**
+     * Backs the Orchestrator's two internal LLM calls (routing, then response synthesis). Unlike
+     * the domain agents above, neither call uses a fixed persona, so this bean carries no
+     * {@code defaultSystem} -- {@code AiOrchestratorService} supplies the appropriate system prompt
+     * per call instead.
+     */
+    @Bean
+    public ChatClient orchestratorChatClient(ChatModel chatModel) {
+        return ChatClient.builder(chatModel).build();
+    }
 }
