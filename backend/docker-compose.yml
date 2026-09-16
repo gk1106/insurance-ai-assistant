@@ -12,6 +12,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: admin
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
+      TZ: Asia/Kolkata
     volumes:
       # RAG source PDFs -- drop files here on the host, then POST /api/ai/rag/ingest.
       - ./documents:/app/documents

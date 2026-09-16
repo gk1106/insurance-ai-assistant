@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.policy.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.policy.PolicyAgentService.ToolContext;
 import com.insuranceai.backend.policy.dto.PolicyResponseDto;
 import com.insuranceai.backend.policy.entity.PolicyStatus;
@@ -12,7 +14,6 @@ import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
 /**
  * A narrow, high-frequency projection over {@link PolicyService#getById} /
@@ -43,10 +44,11 @@ public class CheckPolicyStatusTool {
         log.info("tool=check_policy_status caller={} role={} args=[policyId={}, policyNumber={}]",
                 principal.getUsername(), principal.getRole(), policyId, policyNumber);
 
+        long startNanos = ToolTimer.start();
         try {
             PolicyResponseDto policy;
             if (policyId != null && !policyId.isBlank()) {
-                policy = policyService.getById(UUID.fromString(policyId));
+                policy = policyService.getById(ToolArgumentGuard.requireUuid(policyId, "policyId"));
             } else if (policyNumber != null && !policyNumber.isBlank()) {
                 policy = policyService.getByPolicyNumber(policyNumber);
             } else {
@@ -55,12 +57,12 @@ public class CheckPolicyStatusTool {
 
             context.setLastPolicy(policy);
             long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), policy.endDate());
-            log.info("tool=check_policy_status caller={} outcome=success policyNumber={} status={}",
-                    principal.getUsername(), policy.policyNumber(), policy.status());
+            log.info("tool=check_policy_status caller={} durationMs={} outcome=success policyNumber={} status={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), policy.policyNumber(), policy.status());
             return new PolicyStatusSummary(policy.policyNumber(), policy.status(), policy.endDate(), daysUntilExpiry);
         } catch (RuntimeException ex) {
-            log.warn("tool=check_policy_status caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=check_policy_status caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

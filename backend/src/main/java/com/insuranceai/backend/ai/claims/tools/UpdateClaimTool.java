@@ -1,6 +1,8 @@
 package com.insuranceai.backend.ai.claims.tools;
 
 import com.insuranceai.backend.ai.claims.ClaimsAgentService.ToolContext;
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.claim.dto.ClaimApproveRequestDto;
 import com.insuranceai.backend.claim.dto.ClaimRejectRequestDto;
 import com.insuranceai.backend.claim.dto.ClaimResponseDto;
@@ -65,8 +67,9 @@ public class UpdateClaimTool {
         log.info("tool=update_claim caller={} role={} args=[claimId={}, action={}, approvedAmount={}, reason={}]",
                 principal.getUsername(), principal.getRole(), claimId, action, approvedAmount, reason);
 
+        long startNanos = ToolTimer.start();
         try {
-            UUID id = UUID.fromString(claimId);
+            UUID id = ToolArgumentGuard.requireUuid(claimId, "claimId");
             ClaimResponseDto result = switch (parseAction(action)) {
                 case REVIEW -> claimService.review(id);
                 case APPROVE -> {
@@ -89,12 +92,12 @@ public class UpdateClaimTool {
             };
 
             context.setLastClaim(result);
-            log.info("tool=update_claim caller={} outcome=success claimNumber={} status={}",
-                    principal.getUsername(), result.claimNumber(), result.status());
+            log.info("tool=update_claim caller={} durationMs={} outcome=success claimNumber={} status={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.claimNumber(), result.status());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=update_claim caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=update_claim caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

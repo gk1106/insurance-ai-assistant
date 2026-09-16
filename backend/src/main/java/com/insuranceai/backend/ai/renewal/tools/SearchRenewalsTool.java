@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.renewal.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService.ToolContext;
 import com.insuranceai.backend.renewal.dto.RenewalResponseDto;
 import com.insuranceai.backend.renewal.service.RenewalService;
@@ -9,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -46,21 +47,19 @@ public class SearchRenewalsTool {
         log.info("tool=search_renewals caller={} role={} args=[policyId={}, page={}, size={}]",
                 principal.getUsername(), principal.getRole(), policyId, page, size);
 
+        long startNanos = ToolTimer.start();
         try {
-            if (policyId == null || policyId.isBlank()) {
-                throw new IllegalArgumentException("policyId is required to search renewals");
-            }
-
-            Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 20);
-            Page<RenewalResponseDto> result = renewalService.getByPolicy(UUID.fromString(policyId), pageable);
+            UUID id = ToolArgumentGuard.requireUuid(policyId, "policyId");
+            Pageable pageable = ToolArgumentGuard.pageable(page, size);
+            Page<RenewalResponseDto> result = renewalService.getByPolicy(id, pageable);
 
             context.setLastSearchResults(result.getContent());
-            log.info("tool=search_renewals caller={} outcome=success count={}",
-                    principal.getUsername(), result.getContent().size());
+            log.info("tool=search_renewals caller={} durationMs={} outcome=success count={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.getContent().size());
             return result.getContent();
         } catch (RuntimeException ex) {
-            log.warn("tool=search_renewals caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=search_renewals caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

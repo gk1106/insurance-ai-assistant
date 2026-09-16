@@ -1,5 +1,8 @@
 package com.insuranceai.backend.ai.policy;
 
+import com.insuranceai.backend.ai.guardrail.InputGuardrailService;
+import com.insuranceai.backend.ai.guardrail.OutputGuardrailService;
+import com.insuranceai.backend.ai.observability.AiCallObservability;
 import com.insuranceai.backend.ai.policy.dto.AgentChatResponseDto;
 import com.insuranceai.backend.ai.policy.tools.CheckPolicyStatusTool;
 import com.insuranceai.backend.ai.policy.tools.CreatePolicyTool;
@@ -32,19 +35,30 @@ public class PolicyAgentService {
     private final ChatClient policyAgentChatClient;
     private final PolicyService policyService;
     private final Validator validator;
+    private final InputGuardrailService inputGuardrailService;
+    private final OutputGuardrailService outputGuardrailService;
+    private final AiCallObservability aiCallObservability;
 
-    public PolicyAgentService(ChatClient policyAgentChatClient, PolicyService policyService, Validator validator) {
+    public PolicyAgentService(ChatClient policyAgentChatClient, PolicyService policyService, Validator validator,
+                               InputGuardrailService inputGuardrailService,
+                               OutputGuardrailService outputGuardrailService,
+                               AiCallObservability aiCallObservability) {
         this.policyAgentChatClient = policyAgentChatClient;
         this.policyService = policyService;
         this.validator = validator;
+        this.inputGuardrailService = inputGuardrailService;
+        this.outputGuardrailService = outputGuardrailService;
+        this.aiCallObservability = aiCallObservability;
     }
 
     public AgentChatResponseDto chat(UserPrincipal principal, String message) {
+        inputGuardrailService.assertSafe(message);
+
         ToolContext context = new ToolContext(principal);
 
         log.info("policy-agent chat start caller={} role={}", principal.getUsername(), principal.getRole());
 
-        String reply = policyAgentChatClient.prompt()
+        String reply = aiCallObservability.timed("policy-agent-chat", () -> policyAgentChatClient.prompt()
                 .user(message)
                 .tools(
                         new SearchPoliciesTool(policyService, context),
@@ -54,7 +68,8 @@ public class PolicyAgentService {
                         new CheckPolicyStatusTool(policyService, context)
                 )
                 .call()
-                .content();
+                .content());
+        reply = outputGuardrailService.sanitize(reply);
 
         log.info("policy-agent chat end caller={} touchedPolicy={} searchResultCount={}",
                 principal.getUsername(),

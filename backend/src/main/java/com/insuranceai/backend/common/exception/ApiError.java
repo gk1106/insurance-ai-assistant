@@ -9,7 +9,8 @@ public record ApiError(
         String error,
         String message,
         String path,
-        List<FieldError> fieldErrors
+        List<FieldError> fieldErrors,
+        String correlationId
 ) {
     public record FieldError(String field, String message) {
     }

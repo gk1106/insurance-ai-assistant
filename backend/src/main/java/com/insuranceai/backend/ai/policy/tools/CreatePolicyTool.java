@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.policy.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.policy.PolicyAgentService.ToolContext;
 import com.insuranceai.backend.common.exception.BusinessRuleViolationException;
 import com.insuranceai.backend.policy.dto.PolicyRequestDto;
@@ -19,7 +21,6 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -61,9 +62,10 @@ public class CreatePolicyTool {
                 principal.getUsername(), principal.getRole(), customerId, policyType, coverageAmount,
                 premiumAmount, startDate, endDate);
 
+        long startNanos = ToolTimer.start();
         try {
             PolicyRequestDto request = new PolicyRequestDto(
-                    UUID.fromString(customerId),
+                    ToolArgumentGuard.requireUuid(customerId, "customerId"),
                     parsePolicyType(policyType),
                     BigDecimal.valueOf(coverageAmount),
                     BigDecimal.valueOf(premiumAmount),
@@ -74,12 +76,12 @@ public class CreatePolicyTool {
 
             PolicyResponseDto result = policyService.create(request);
             context.setLastPolicy(result);
-            log.info("tool=create_policy caller={} outcome=success policyNumber={}",
-                    principal.getUsername(), result.policyNumber());
+            log.info("tool=create_policy caller={} durationMs={} outcome=success policyNumber={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.policyNumber());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=create_policy caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=create_policy caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

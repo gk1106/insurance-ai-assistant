@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.renewal.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService.ToolContext;
 import com.insuranceai.backend.common.exception.BusinessRuleViolationException;
 import com.insuranceai.backend.renewal.dto.RenewalRequestDto;
@@ -16,7 +18,6 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -56,9 +57,10 @@ public class CreateRenewalTool {
         log.info("tool=create_renewal caller={} role={} args=[policyId={}, newEndDate={}, revisedPremiumAmount={}]",
                 principal.getUsername(), principal.getRole(), policyId, newEndDate, revisedPremiumAmount);
 
+        long startNanos = ToolTimer.start();
         try {
             RenewalRequestDto request = new RenewalRequestDto(
-                    UUID.fromString(policyId),
+                    ToolArgumentGuard.requireUuid(policyId, "policyId"),
                     LocalDate.parse(newEndDate),
                     BigDecimal.valueOf(revisedPremiumAmount)
             );
@@ -66,12 +68,12 @@ public class CreateRenewalTool {
 
             RenewalResponseDto result = renewalService.create(request);
             context.setLastRenewal(result);
-            log.info("tool=create_renewal caller={} outcome=success renewalId={}",
-                    principal.getUsername(), result.id());
+            log.info("tool=create_renewal caller={} durationMs={} outcome=success renewalId={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.id());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=create_renewal caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=create_renewal caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

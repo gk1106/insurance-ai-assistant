@@ -1,7 +1,10 @@
 package com.insuranceai.backend.ai.orchestrator;
 
 import com.insuranceai.backend.ai.claims.ClaimsAgentService;
+import com.insuranceai.backend.ai.guardrail.InputGuardrailService;
+import com.insuranceai.backend.ai.guardrail.OutputGuardrailService;
 import com.insuranceai.backend.ai.knowledge.KnowledgeAgentService;
+import com.insuranceai.backend.ai.observability.AiCallObservability;
 import com.insuranceai.backend.ai.orchestrator.dto.AgentChatResponseDto;
 import com.insuranceai.backend.ai.orchestrator.dto.RouteDecision;
 import com.insuranceai.backend.ai.policy.PolicyAgentService;
@@ -79,20 +82,31 @@ public class AiOrchestratorService {
     private final ClaimsAgentService claimsAgentService;
     private final RenewalAgentService renewalAgentService;
     private final KnowledgeAgentService knowledgeAgentService;
+    private final InputGuardrailService inputGuardrailService;
+    private final OutputGuardrailService outputGuardrailService;
+    private final AiCallObservability aiCallObservability;
 
     public AiOrchestratorService(ChatClient orchestratorChatClient,
                                   PolicyAgentService policyAgentService,
                                   ClaimsAgentService claimsAgentService,
                                   RenewalAgentService renewalAgentService,
-                                  KnowledgeAgentService knowledgeAgentService) {
+                                  KnowledgeAgentService knowledgeAgentService,
+                                  InputGuardrailService inputGuardrailService,
+                                  OutputGuardrailService outputGuardrailService,
+                                  AiCallObservability aiCallObservability) {
         this.orchestratorChatClient = orchestratorChatClient;
         this.policyAgentService = policyAgentService;
         this.claimsAgentService = claimsAgentService;
         this.renewalAgentService = renewalAgentService;
         this.knowledgeAgentService = knowledgeAgentService;
+        this.inputGuardrailService = inputGuardrailService;
+        this.outputGuardrailService = outputGuardrailService;
+        this.aiCallObservability = aiCallObservability;
     }
 
     public AgentChatResponseDto chat(UserPrincipal principal, String message) {
+        inputGuardrailService.assertSafe(message);
+
         log.info("orchestrator chat start caller={} role={}", principal.getUsername(), principal.getRole());
 
         List<DomainAgent> agents = route(principal, message);
@@ -120,6 +134,7 @@ public class AiOrchestratorService {
         String reply = (outcomes.size() == 1)
                 ? successes.get(0).reply()
                 : synthesize(principal, message, outcomes);
+        reply = outputGuardrailService.sanitize(reply);
 
         log.info("orchestrator chat end caller={} agentsUsed={} succeeded={}",
                 principal.getUsername(), agents, successes.stream().map(AgentOutcome::agent).toList());
@@ -129,11 +144,11 @@ public class AiOrchestratorService {
     private List<DomainAgent> route(UserPrincipal principal, String message) {
         RouteDecision decision;
         try {
-            decision = orchestratorChatClient.prompt()
+            decision = aiCallObservability.timed("orchestrator-route", () -> orchestratorChatClient.prompt()
                     .system(ROUTER_SYSTEM_PROMPT)
                     .user(message)
                     .call()
-                    .entity(RouteDecision.class);
+                    .entity(RouteDecision.class));
         } catch (RuntimeException ex) {
             log.warn("orchestrator route caller={} outcome=error message={}",
                     principal.getUsername(), ex.getMessage());
@@ -208,11 +223,11 @@ public class AiOrchestratorService {
         }
 
         try {
-            return orchestratorChatClient.prompt()
+            return aiCallObservability.timed("orchestrator-synthesize", () -> orchestratorChatClient.prompt()
                     .system(SYNTHESIS_SYSTEM_PROMPT)
                     .user(sb.toString())
                     .call()
-                    .content();
+                    .content());
         } catch (RuntimeException ex) {
             log.warn("orchestrator synthesize caller={} outcome=error message={}",
                     principal.getUsername(), ex.getMessage());

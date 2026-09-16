@@ -1,0 +1,71 @@
+# Production stack: postgres (pgvector) + backend (Spring profile=prod) + frontend (nginx,
+# reverse-proxying /api to backend). Every secret below must come from the shell environment or
+# a .env file next to this compose file -- docker compose auto-loads a same-directory .env, so
+# `cp .env.prod.example .env`, fill it in, and this is ready to run. Nothing here has a fallback
+# default for a secret: a deployment that forgets one fails immediately with a clear message
+# instead of silently running with a dev credential.
+#
+# Run with:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Differs from backend/docker-compose.yml (the local dev stack) in the ways that matter for a
+# real deployment: no database port exposed to the host, no default/fallback credentials, an
+# nginx-served frontend build instead of the Vite dev server, restart policies, and container
+# healthchecks gating startup order. This still assumes the repo is checked out on the deploy
+# host (both app images are built from the local Dockerfiles) and that a TLS-terminating reverse
+# proxy/load balancer sits in front of the frontend container in the actual environment -- that
+# layer is intentionally out of scope here.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-insurance_ai}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # No ports: mapping -- reachable only from other containers on this compose network, unlike
+    # the dev stack's 5555:5432 host mapping (kept there for local psql access).
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-insurance_ai}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required -- generate one, e.g. openssl rand -base64 48}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required, e.g. https://your-domain.com}
+      TZ: ${TZ:-UTC}
+    volumes:
+      # Same bind-mount pattern as the dev stack: drop PDFs into backend/documents/ on the host,
+      # then POST /api/ai/rag/ingest.
+      - ./backend/documents:/app/documents
+    restart: unless-stopped
+    # No ports: mapping -- only the frontend container (and anything else on this network) can
+    # reach it directly; the outside world only ever talks to the frontend container.
+
+  frontend:
+    build: ./frontend/InsuranceAi-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

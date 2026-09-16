@@ -41,6 +41,39 @@ spring:
         # this project -- Spring AI must not try to create/alter it itself at startup.
         initialize-schema: false
 
+    mcp:
+      server:
+        name: insurancehub-mcp-server
+        version: 1.0.0
+        # SSE transport (the default), embedded in this same Spring Boot app -- no separate
+        # process. Endpoints (/sse, /mcp/message) sit outside /api/** but still fall under
+        # SecurityConfig's anyRequest().authenticated(), so the same JWT required everywhere
+        # else is required here too.
+        capabilities:
+          # Only tools are exposed in this phase -- no resources/prompts/completions to offer.
+          resource: false
+          prompt: false
+          completion: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only /actuator/health is exposed (and left unauthenticated in SecurityConfig, for a
+        # Docker/orchestrator healthcheck) -- no metrics/env/beans surface, intentionally.
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  pattern:
+    # Prefixes every log line with the request's correlation id (set by CorrelationIdFilter into
+    # SLF4J's MDC for /api/ai/** requests) so the whole Orchestrator -> Agent -> Tool -> Service ->
+    # DB/RAG flow for one request can be grepped out of the console as a single thread. Prints
+    # empty brackets for requests that never set one (everything outside /api/ai/**).
+    level: "%5p [correlationId=%X{correlationId}]"
+
 server:
   port: 8082
 
@@ -48,6 +81,11 @@ app:
   jwt:
     secret: ${JWT_SECRET:3xSxKkD1ApUphD6ZMjhfeUAepB1LIDzFXE4xQCaBKGA}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+  cors:
+    # Comma-separated list, read by WebConfig. Defaults to the two local dev origins; production
+    # overrides via CORS_ALLOWED_ORIGINS (see application-prod.yml).
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
 
   rag:
     # Local filesystem directory scanned for PDFs by RagIngestionService. Relative paths resolve

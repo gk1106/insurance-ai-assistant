@@ -1,6 +1,8 @@
 package com.insuranceai.backend.ai.claims.tools;
 
 import com.insuranceai.backend.ai.claims.ClaimsAgentService.ToolContext;
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.claim.dto.ClaimRequestDto;
 import com.insuranceai.backend.claim.dto.ClaimResponseDto;
 import com.insuranceai.backend.claim.service.ClaimService;
@@ -16,7 +18,6 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -57,9 +58,10 @@ public class CreateClaimTool {
         log.info("tool=create_claim caller={} role={} args=[policyId={}, claimAmount={}, incidentDate={}]",
                 principal.getUsername(), principal.getRole(), policyId, claimAmount, incidentDate);
 
+        long startNanos = ToolTimer.start();
         try {
             ClaimRequestDto request = new ClaimRequestDto(
-                    UUID.fromString(policyId),
+                    ToolArgumentGuard.requireUuid(policyId, "policyId"),
                     BigDecimal.valueOf(claimAmount),
                     LocalDate.parse(incidentDate),
                     description
@@ -68,12 +70,12 @@ public class CreateClaimTool {
 
             ClaimResponseDto result = claimService.create(request);
             context.setLastClaim(result);
-            log.info("tool=create_claim caller={} outcome=success claimNumber={}",
-                    principal.getUsername(), result.claimNumber());
+            log.info("tool=create_claim caller={} durationMs={} outcome=success claimNumber={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.claimNumber());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=create_claim caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=create_claim caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

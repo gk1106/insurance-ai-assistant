@@ -23,4 +23,7 @@ USER spring:spring
 
 EXPOSE 8082
 
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=5 \
+    CMD wget -qO- http://localhost:8082/actuator/health | grep -q '"status":"UP"' || exit 1
+
 ENTRYPOINT ["java", "-jar", "app.jar"]

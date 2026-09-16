@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.policy.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.policy.PolicyAgentService.ToolContext;
 import com.insuranceai.backend.policy.dto.PolicyResponseDto;
 import com.insuranceai.backend.policy.service.PolicyService;
@@ -8,8 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.UUID;
 
 /**
  * Wraps {@link PolicyService#getById} / {@link PolicyService#getByPolicyNumber} only. Both already
@@ -40,10 +40,11 @@ public class GetPolicyDetailsTool {
         log.info("tool=get_policy_details caller={} role={} args=[policyId={}, policyNumber={}]",
                 principal.getUsername(), principal.getRole(), policyId, policyNumber);
 
+        long startNanos = ToolTimer.start();
         try {
             PolicyResponseDto result;
             if (policyId != null && !policyId.isBlank()) {
-                result = policyService.getById(UUID.fromString(policyId));
+                result = policyService.getById(ToolArgumentGuard.requireUuid(policyId, "policyId"));
             } else if (policyNumber != null && !policyNumber.isBlank()) {
                 result = policyService.getByPolicyNumber(policyNumber);
             } else {
@@ -51,12 +52,12 @@ public class GetPolicyDetailsTool {
             }
 
             context.setLastPolicy(result);
-            log.info("tool=get_policy_details caller={} outcome=success policyNumber={}",
-                    principal.getUsername(), result.policyNumber());
+            log.info("tool=get_policy_details caller={} durationMs={} outcome=success policyNumber={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.policyNumber());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=get_policy_details caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=get_policy_details caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

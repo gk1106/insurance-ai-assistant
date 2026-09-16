@@ -6,6 +6,9 @@ import com.insuranceai.backend.ai.claims.tools.CreateClaimTool;
 import com.insuranceai.backend.ai.claims.tools.GetClaimDetailsTool;
 import com.insuranceai.backend.ai.claims.tools.SearchClaimsTool;
 import com.insuranceai.backend.ai.claims.tools.UpdateClaimTool;
+import com.insuranceai.backend.ai.guardrail.InputGuardrailService;
+import com.insuranceai.backend.ai.guardrail.OutputGuardrailService;
+import com.insuranceai.backend.ai.observability.AiCallObservability;
 import com.insuranceai.backend.claim.dto.ClaimResponseDto;
 import com.insuranceai.backend.claim.service.ClaimService;
 import com.insuranceai.backend.security.UserPrincipal;
@@ -33,19 +36,30 @@ public class ClaimsAgentService {
     private final ChatClient claimsAgentChatClient;
     private final ClaimService claimService;
     private final Validator validator;
+    private final InputGuardrailService inputGuardrailService;
+    private final OutputGuardrailService outputGuardrailService;
+    private final AiCallObservability aiCallObservability;
 
-    public ClaimsAgentService(ChatClient claimsAgentChatClient, ClaimService claimService, Validator validator) {
+    public ClaimsAgentService(ChatClient claimsAgentChatClient, ClaimService claimService, Validator validator,
+                               InputGuardrailService inputGuardrailService,
+                               OutputGuardrailService outputGuardrailService,
+                               AiCallObservability aiCallObservability) {
         this.claimsAgentChatClient = claimsAgentChatClient;
         this.claimService = claimService;
         this.validator = validator;
+        this.inputGuardrailService = inputGuardrailService;
+        this.outputGuardrailService = outputGuardrailService;
+        this.aiCallObservability = aiCallObservability;
     }
 
     public AgentChatResponseDto chat(UserPrincipal principal, String message) {
+        inputGuardrailService.assertSafe(message);
+
         ToolContext context = new ToolContext(principal);
 
         log.info("claims-agent chat start caller={} role={}", principal.getUsername(), principal.getRole());
 
-        String reply = claimsAgentChatClient.prompt()
+        String reply = aiCallObservability.timed("claims-agent-chat", () -> claimsAgentChatClient.prompt()
                 .user(message)
                 .tools(
                         new SearchClaimsTool(claimService, context),
@@ -55,7 +69,8 @@ public class ClaimsAgentService {
                         new CheckClaimStatusTool(claimService, context)
                 )
                 .call()
-                .content();
+                .content());
+        reply = outputGuardrailService.sanitize(reply);
 
         log.info("claims-agent chat end caller={} touchedClaim={} searchResultCount={}",
                 principal.getUsername(),

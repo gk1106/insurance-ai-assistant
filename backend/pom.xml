@@ -22,6 +22,9 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
         <spring-ai.version>1.1.8</spring-ai.version>
+        <!-- See the maven-surefire-plugin config below: overridable so the evaluation suite can
+             be run explicitly with -Dexcluded.groups= (blank). -->
+        <excluded.groups>evaluation</excluded.groups>
     </properties>
 
     <dependencyManagement>
@@ -50,6 +53,10 @@
             <artifactId>spring-ai-pdf-document-reader</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -64,6 +71,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <dependency>
@@ -122,6 +137,18 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- The "evaluation" suite (see ai.evaluation package) is a live, black-box
+                         test against a running instance of this app with a real OpenAI key,
+                         excluded from the default mvn test so the normal build stays fast,
+                         deterministic, and network-free. Run it explicitly with:
+                         mvn test -Dexcluded.groups= -Deval.baseUrl=http://localhost:8082 -->
+                    <excludedGroups>${excluded.groups}</excludedGroups>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

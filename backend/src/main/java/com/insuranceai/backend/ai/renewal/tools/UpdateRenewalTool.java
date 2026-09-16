@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.renewal.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService.ToolContext;
 import com.insuranceai.backend.common.exception.BusinessRuleViolationException;
 import com.insuranceai.backend.renewal.dto.RenewalResponseDto;
@@ -48,20 +50,21 @@ public class UpdateRenewalTool {
         log.info("tool=update_renewal caller={} role={} args=[renewalId={}, action={}]",
                 principal.getUsername(), principal.getRole(), renewalId, action);
 
+        long startNanos = ToolTimer.start();
         try {
-            UUID id = UUID.fromString(renewalId);
+            UUID id = ToolArgumentGuard.requireUuid(renewalId, "renewalId");
             RenewalResponseDto result = switch (parseAction(action)) {
                 case CONFIRM -> renewalService.confirm(id);
                 case REJECT -> renewalService.reject(id);
             };
 
             context.setLastRenewal(result);
-            log.info("tool=update_renewal caller={} outcome=success renewalId={} status={}",
-                    principal.getUsername(), result.id(), result.status());
+            log.info("tool=update_renewal caller={} durationMs={} outcome=success renewalId={} status={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.id(), result.status());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=update_renewal caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=update_renewal caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

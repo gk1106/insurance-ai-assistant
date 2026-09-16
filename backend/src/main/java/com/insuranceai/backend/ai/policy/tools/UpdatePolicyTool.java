@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.policy.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.policy.PolicyAgentService.ToolContext;
 import com.insuranceai.backend.common.exception.BusinessRuleViolationException;
 import com.insuranceai.backend.policy.dto.PolicyRequestDto;
@@ -59,8 +61,9 @@ public class UpdatePolicyTool {
                 principal.getUsername(), principal.getRole(), policyId, policyType, coverageAmount,
                 premiumAmount, startDate, endDate);
 
+        long startNanos = ToolTimer.start();
         try {
-            UUID id = UUID.fromString(policyId);
+            UUID id = ToolArgumentGuard.requireUuid(policyId, "policyId");
             PolicyRequestDto request = new PolicyRequestDto(
                     // customerId isn't mutated by PolicyService.update; the request DTO still
                     // requires the field, so reuse the policy's current owner via a fresh lookup.
@@ -75,12 +78,12 @@ public class UpdatePolicyTool {
 
             PolicyResponseDto result = policyService.update(id, request);
             context.setLastPolicy(result);
-            log.info("tool=update_policy caller={} outcome=success policyNumber={}",
-                    principal.getUsername(), result.policyNumber());
+            log.info("tool=update_policy caller={} durationMs={} outcome=success policyNumber={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.policyNumber());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=update_policy caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=update_policy caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

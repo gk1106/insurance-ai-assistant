@@ -1,6 +1,7 @@
 package com.insuranceai.backend.ai.knowledge.tools;
 
 import com.insuranceai.backend.ai.knowledge.KnowledgeAgentService.ToolContext;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.rag.RagSearchService;
 import com.insuranceai.backend.ai.rag.dto.RagSearchResultDto;
 import com.insuranceai.backend.security.UserPrincipal;
@@ -48,13 +49,18 @@ public class SearchKnowledgeBaseTool {
                     + "with synonyms or restate it multiple times") String query) {
 
         UserPrincipal principal = context.getPrincipal();
-        log.info("tool=search_knowledge_base caller={} args=[query={}]", principal.getUsername(), query);
+        // The query text itself isn't logged -- it's free-form user input that could echo back
+        // customer-specific content; only its length is, which is enough to spot suspiciously
+        // large inputs. RagSearchService logs the retrieval outcome (chunks, sources, timing).
+        log.info("tool=search_knowledge_base caller={} args=[queryLength={}]",
+                principal.getUsername(), query != null ? query.length() : 0);
 
+        long startNanos = ToolTimer.start();
         List<RagSearchResultDto> results = ragSearchService.search(query, TOP_K, SIMILARITY_THRESHOLD);
         context.setLastResults(results);
 
-        log.info("tool=search_knowledge_base caller={} outcome=success chunksReturned={}",
-                principal.getUsername(), results.size());
+        log.info("tool=search_knowledge_base caller={} durationMs={} outcome=success chunksReturned={}",
+                principal.getUsername(), ToolTimer.elapsedMs(startNanos), results.size());
         return results;
     }
 }

@@ -46,13 +46,18 @@ public class RagSearchService {
         }
         int effectiveTopK = (topK != null && topK > 0) ? topK : DEFAULT_TOP_K;
 
+        long startNanos = System.nanoTime();
         List<Document> matches = vectorStore.similaritySearch(
                 SearchRequest.builder().query(query).topK(effectiveTopK).similarityThreshold(similarityThreshold).build());
+        long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
 
-        log.info("rag search query='{}' topK={} similarityThreshold={} outcome=success matches={}",
-                query, effectiveTopK, similarityThreshold, matches.size());
+        List<RagSearchResultDto> results = matches.stream().map(this::toResult).toList();
+        List<String> sourceDocuments = results.stream().map(RagSearchResultDto::source).distinct().toList();
 
-        return matches.stream().map(this::toResult).toList();
+        log.info("rag-retrieval topK={} similarityThreshold={} durationMs={} chunksReturned={} sources={}",
+                effectiveTopK, similarityThreshold, durationMs, results.size(), sourceDocuments);
+
+        return results;
     }
 
     private RagSearchResultDto toResult(Document document) {

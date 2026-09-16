@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.renewal.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService.ToolContext;
 import com.insuranceai.backend.renewal.dto.RenewalResponseDto;
 import com.insuranceai.backend.renewal.service.RenewalService;
@@ -8,8 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.UUID;
 
 /**
  * Wraps {@link RenewalService#getById} only. It already enforces ownership
@@ -38,15 +38,16 @@ public class GetRenewalDetailsTool {
         log.info("tool=get_renewal_details caller={} role={} args=[renewalId={}]",
                 principal.getUsername(), principal.getRole(), renewalId);
 
+        long startNanos = ToolTimer.start();
         try {
-            RenewalResponseDto result = renewalService.getById(UUID.fromString(renewalId));
+            RenewalResponseDto result = renewalService.getById(ToolArgumentGuard.requireUuid(renewalId, "renewalId"));
             context.setLastRenewal(result);
-            log.info("tool=get_renewal_details caller={} outcome=success renewalId={} status={}",
-                    principal.getUsername(), result.id(), result.status());
+            log.info("tool=get_renewal_details caller={} durationMs={} outcome=success renewalId={} status={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), result.id(), result.status());
             return result;
         } catch (RuntimeException ex) {
-            log.warn("tool=get_renewal_details caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=get_renewal_details caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }

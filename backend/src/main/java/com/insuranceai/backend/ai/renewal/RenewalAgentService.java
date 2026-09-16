@@ -1,5 +1,8 @@
 package com.insuranceai.backend.ai.renewal;
 
+import com.insuranceai.backend.ai.guardrail.InputGuardrailService;
+import com.insuranceai.backend.ai.guardrail.OutputGuardrailService;
+import com.insuranceai.backend.ai.observability.AiCallObservability;
 import com.insuranceai.backend.ai.renewal.dto.AgentChatResponseDto;
 import com.insuranceai.backend.ai.renewal.tools.CheckRenewalStatusTool;
 import com.insuranceai.backend.ai.renewal.tools.CreateRenewalTool;
@@ -33,19 +36,30 @@ public class RenewalAgentService {
     private final ChatClient renewalAgentChatClient;
     private final RenewalService renewalService;
     private final Validator validator;
+    private final InputGuardrailService inputGuardrailService;
+    private final OutputGuardrailService outputGuardrailService;
+    private final AiCallObservability aiCallObservability;
 
-    public RenewalAgentService(ChatClient renewalAgentChatClient, RenewalService renewalService, Validator validator) {
+    public RenewalAgentService(ChatClient renewalAgentChatClient, RenewalService renewalService, Validator validator,
+                                InputGuardrailService inputGuardrailService,
+                                OutputGuardrailService outputGuardrailService,
+                                AiCallObservability aiCallObservability) {
         this.renewalAgentChatClient = renewalAgentChatClient;
         this.renewalService = renewalService;
         this.validator = validator;
+        this.inputGuardrailService = inputGuardrailService;
+        this.outputGuardrailService = outputGuardrailService;
+        this.aiCallObservability = aiCallObservability;
     }
 
     public AgentChatResponseDto chat(UserPrincipal principal, String message) {
+        inputGuardrailService.assertSafe(message);
+
         ToolContext context = new ToolContext(principal);
 
         log.info("renewal-agent chat start caller={} role={}", principal.getUsername(), principal.getRole());
 
-        String reply = renewalAgentChatClient.prompt()
+        String reply = aiCallObservability.timed("renewal-agent-chat", () -> renewalAgentChatClient.prompt()
                 .user(message)
                 .tools(
                         new SearchRenewalsTool(renewalService, context),
@@ -55,7 +69,8 @@ public class RenewalAgentService {
                         new CheckRenewalStatusTool(renewalService, context)
                 )
                 .call()
-                .content();
+                .content());
+        reply = outputGuardrailService.sanitize(reply);
 
         log.info("renewal-agent chat end caller={} touchedRenewal={} searchResultCount={}",
                 principal.getUsername(),

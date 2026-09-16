@@ -1,5 +1,7 @@
 package com.insuranceai.backend.ai.renewal.tools;
 
+import com.insuranceai.backend.ai.guardrail.ToolArgumentGuard;
+import com.insuranceai.backend.ai.observability.ToolTimer;
 import com.insuranceai.backend.ai.renewal.RenewalAgentService.ToolContext;
 import com.insuranceai.backend.renewal.dto.RenewalResponseDto;
 import com.insuranceai.backend.renewal.entity.RenewalStatus;
@@ -14,7 +16,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.UUID;
 
 /**
  * A narrow, high-frequency projection over {@link RenewalService#getById} -- "has my renewal been
@@ -43,20 +44,21 @@ public class CheckRenewalStatusTool {
         log.info("tool=check_renewal_status caller={} role={} args=[renewalId={}]",
                 principal.getUsername(), principal.getRole(), renewalId);
 
+        long startNanos = ToolTimer.start();
         try {
-            RenewalResponseDto renewal = renewalService.getById(UUID.fromString(renewalId));
+            RenewalResponseDto renewal = renewalService.getById(ToolArgumentGuard.requireUuid(renewalId, "renewalId"));
             context.setLastRenewal(renewal);
 
             long daysSinceRequested = Duration.between(renewal.requestedAt(), Instant.now()).toDays();
             boolean decided = renewal.decidedAt() != null;
 
-            log.info("tool=check_renewal_status caller={} outcome=success renewalId={} status={}",
-                    principal.getUsername(), renewal.id(), renewal.status());
+            log.info("tool=check_renewal_status caller={} durationMs={} outcome=success renewalId={} status={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), renewal.id(), renewal.status());
             return new RenewalStatusSummary(renewal.policyNumber(), renewal.status(), renewal.previousEndDate(),
                     renewal.newEndDate(), renewal.revisedPremiumAmount(), decided, daysSinceRequested);
         } catch (RuntimeException ex) {
-            log.warn("tool=check_renewal_status caller={} outcome=error message={}",
-                    principal.getUsername(), ex.getMessage());
+            log.warn("tool=check_renewal_status caller={} durationMs={} outcome=error message={}",
+                    principal.getUsername(), ToolTimer.elapsedMs(startNanos), ex.getMessage());
             throw ex;
         }
     }
