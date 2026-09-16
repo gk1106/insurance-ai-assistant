@@ -1,15 +1,28 @@
-name: CI
+name: CI/CD
 
 on:
-  pull_request:
   push:
     branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-  build-and-test:
+  # ---------------------------------------------------------------------
+  # Backend: mvn clean test, then package the jar. Gates the (slower) Docker
+  # build below -- no point building images from code that doesn't compile
+  # or pass its tests.
+  # ---------------------------------------------------------------------
+  backend-build-test:
+    name: Backend - build & test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -25,14 +38,132 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: maven
 
+      # No secrets needed here: every test is a plain unit test (Mockito-mocked
+      # dependencies), none of them boot the Spring context or call OpenAI. The
+      # separate live "evaluation" suite is excluded from this by default (see
+      # pom.xml's excluded.groups) precisely so CI stays network-free and secret-free.
       - name: Run tests
-        run: mvn -B test
+        run: mvn -B clean test
 
       - name: Build application
-        run: mvn -B package -Dmaven.test.skip=true
+        run: mvn -B package -DskipTests
 
-      - name: Build Docker image
-        run: docker build -t insurance-ai-backend:ci .
+  # ---------------------------------------------------------------------
+  # Frontend: npm ci, then the production Vite build.
+  # ---------------------------------------------------------------------
+  frontend-build:
+    name: Frontend - install & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend/InsuranceAi-frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/InsuranceAi-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------
+  # Docker: build both production images (backend/Dockerfile,
+  # frontend/InsuranceAi-frontend/Dockerfile -- the same ones
+  # docker-compose.prod.yml already builds from). Every PR and push builds
+  # both images, to catch a broken Dockerfile early; only a push to main
+  # actually pushes them to GHCR, tagged with the commit SHA and "latest".
+  # ---------------------------------------------------------------------
+  docker-build-push:
+    name: Build & push Docker images
+    needs: [backend-build-test, frontend-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Skipped on pull_request builds: a PR (especially from a fork) may not carry
+      # package-write permission for GITHUB_TOKEN, and images are never pushed for
+      # PRs anyway (see each build step's "push:" condition below) -- so there is
+      # nothing here that needs authenticating.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR requires lowercase image paths; github.repository preserves whatever
+      # case the repo was created with, so this normalizes it defensively rather
+      # than assuming the repo is already all-lowercase.
+      - name: Compute image names
+        id: image
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "backend=${{ env.REGISTRY }}/${REPO_LOWER}-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=${{ env.REGISTRY }}/${REPO_LOWER}-frontend" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.image.outputs.backend }}:${{ github.sha }}
+            ${{ steps.image.outputs.backend }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend/InsuranceAi-frontend
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.image.outputs.frontend }}:${{ github.sha }}
+            ${{ steps.image.outputs.frontend }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  # ---------------------------------------------------------------------
+  # Deployment placeholder. Wired into the pipeline (needs: docker-build-push)
+  # so the structure is in place, but disabled (if: false) until a target
+  # environment is chosen -- see requirement "do not implement cloud
+  # deployment yet". To activate: remove the `if: false` line, add an
+  # `environment:` block if using GitHub Environments/approvals, and add the
+  # real deploy steps (e.g. SSH + `docker compose -f docker-compose.prod.yml
+  # pull && up -d`, or a cloud provider's deploy action). Any additional
+  # secrets that step needs (SSH key, cloud credentials, etc.) get added the
+  # same way as everything else here: repository Settings -> Secrets and
+  # variables -> Actions, referenced via `secrets.<NAME>`, never hardcoded.
+  # ---------------------------------------------------------------------
+  deploy:
+    name: Deploy (not yet implemented)
+    needs: [docker-build-push]
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - name: Deploy
+        run: echo "Deployment stage placeholder -- implement once a target environment is chosen."
