@@ -133,6 +133,9 @@ Next planned features:
 
 <img width="1919" height="943" alt="Screenshot 2026-09-16 003244" src="https://github.com/user-attachments/assets/bc71e438-fb9d-44f3-bd31-2fc6264be613" />
 
+<img width="1919" height="952" alt="Screenshot 2026-09-16 100932" src="https://github.com/user-attachments/assets/3ca59cd4-340e-4f77-aef5-7b55af52bd3f" />
+
+
 
 
 
