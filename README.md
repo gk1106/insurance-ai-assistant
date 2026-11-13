@@ -1,40 +1,63 @@
-# InsuranceHub AI
+# 🚀 InsuranceHub AI
 
-An AI-powered insurance management application with a modern React dashboard and an AI Policy Assistant.
+An AI-powered insurance management platform built with **React, Spring Boot, PostgreSQL, and OpenAI**, featuring multi-agent AI, RAG, MCP, tool calling, and a modern enterprise UI.
 
-## 🚀 Features
+## ✨ Features
 
-* Policy management
-* Claims management
-* Renewal management
-* Insurance dashboard
-* AI Policy Assistant
-* AI tool calling with GPT
-* JWT-based authentication
-* PostgreSQL database
-* Docker support
-* Responsive modern UI
+- 📊 Insurance Dashboard
+- 📋 Policy Management
+- 🧾 Claims Management
+- 🔄 Renewal Management
+- 🤖 AI Insurance Assistant
+- 🧠 Multi-Agent Architecture
+- 🔧 AI Tool Calling
+- 📚 RAG (Retrieval-Augmented Generation)
+- 🔌 MCP Integration
+- 🛡️ JWT Authentication & Authorization
+- 🛡️ AI Guardrails
+- 📈 AI Observability & Tracing
+- 🐳 Docker & Docker Compose
+- ⚙️ GitHub Actions CI/CD
+- 📱 Responsive Premium UI
 
-## 🤖 AI Policy Agent
+---
 
-The AI assistant can interact with the existing Policy APIs using tools such as:
+## 🤖 AI Architecture
 
-* `search_policies`
-* `get_policy_details`
-* `create_policy`
-* `update_policy`
-* `check_policy_status`
-
-### Flow
+The application uses specialized agents for different insurance domains.
 
 ```text
-User → React Chatbot → Policy Agent → GPT
-                         ↓
-                    Policy Tools
-                         ↓
-                  Policy Service
-                         ↓
-                   PostgreSQL
+                         ┌───────────────┐
+                         │     User      │
+                         └───────┬───────┘
+                                 │
+                                 ▼
+                     ┌─────────────────────┐
+                     │   AI Orchestrator   │
+                     └──────────┬──────────┘
+                                │
+             ┌──────────────────┼──────────────────┐
+             ▼                  ▼                  ▼
+      ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+      │ Policy Agent│    │ Claims Agent│    │Renewal Agent│
+      └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
+             │                  │                  │
+             ▼                  ▼                  ▼
+        Policy Tools       Claims Tools       Renewal Tools
+             │                  │                  │
+             └──────────────────┼──────────────────┘
+                                ▼
+                        Spring Boot Services
+                                │
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+              PostgreSQL                RAG System
+                                            │
+                                            ▼
+                                      Vector Store
+                                            │
+                                            ▼
+                                     Insurance Docs
 ```
 
 The AI does not directly access the database; it uses the application's existing service layer.
@@ -107,6 +130,12 @@ Next planned features:
 <img width="1919" height="952" alt="image" src="https://github.com/user-attachments/assets/3e5d693b-c169-4c3a-a195-91b5b181c0ea" />
 
 <img width="1919" height="948" alt="image" src="https://github.com/user-attachments/assets/07ee8970-b72c-4194-90b7-2bc340ef3563" />
+
+<img width="1919" height="943" alt="Screenshot 2026-09-16 003244" src="https://github.com/user-attachments/assets/bc71e438-fb9d-44f3-bd31-2fc6264be613" />
+
+<img width="1919" height="952" alt="Screenshot 2026-09-16 100932" src="https://github.com/user-attachments/assets/3ca59cd4-340e-4f77-aef5-7b55af52bd3f" />
+
+
 
 
 
