@@ -16,6 +16,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "policies")
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public class Policy extends BaseEntity {
 
     @Column(name = "policy_number", nullable = false, unique = true, length = 50)

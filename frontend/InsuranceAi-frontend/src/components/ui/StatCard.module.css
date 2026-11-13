@@ -7,7 +7,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  transition: box-shadow var(--transition-base), transform var(--transition-base);
+  transition:
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
 }
 
 .card:hover {
@@ -62,4 +64,14 @@
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.02em;
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.iconBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
 }

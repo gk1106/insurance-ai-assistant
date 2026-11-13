@@ -8,16 +8,6 @@
   overflow: hidden;
 }
 
-/* Subtle top sheen -- the "glossy" cue, kept faint so it reads as premium
-   rather than decorative */
-.card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
-}
-
 .title {
   margin: 0 0 var(--space-4);
   font-size: var(--text-lg);

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "renewals")
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public class Renewal extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

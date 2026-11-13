@@ -1,14 +1,26 @@
+import { formatCurrency } from '../utils/currency'
 import { useEffect, useRef, useState } from 'react'
-import { PageHeader } from '../components/layout/PageHeader'
-import { Card } from '../components/ui/Card'
+import { Link, useSearchParams } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import {
+  ArrowUp,
+  ArrowDown,
+  Copy,
+  RotateCcw,
+  Paperclip,
+  Sparkles,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { DocumentIcon } from '../components/ui/Icon'
 import { useAuth } from '../hooks/useAuth'
+import { knowledgeAgentApi } from '../api/knowledgeAgentApi'
 import { aiAssistantApi } from '../api/aiAssistantApi'
 import { policyAgentApi } from '../api/policyAgentApi'
 import { claimsAgentApi } from '../api/claimsAgentApi'
 import { renewalAgentApi } from '../api/renewalAgentApi'
-import formStyles from '../components/ui/Form.module.css'
 import styles from './ChatPage.module.css'
 
 const STAFF_ROLES = new Set(['ADMIN', 'AGENT'])
@@ -78,37 +90,53 @@ const AGENT_CONFIG = {
     initials: 'AI',
     api: aiAssistantApi,
     placeholder: 'Ask about policies, claims, or renewals...',
-    subtitle: () => 'Automatically routes your question to the right specialist agent',
-    suggestions: (isStaff) => (isStaff ? STAFF_ASSISTANT_SUGGESTIONS : CUSTOMER_ASSISTANT_SUGGESTIONS),
+    subtitle: () =>
+      'Automatically routes your question to the right specialist agent',
+    suggestions: (isStaff) =>
+      isStaff ? STAFF_ASSISTANT_SUGGESTIONS : CUSTOMER_ASSISTANT_SUGGESTIONS,
   },
   policy: {
     label: 'Policy Agent',
     initials: 'PA',
     api: policyAgentApi,
     placeholder: 'Ask about a policy...',
-    subtitle: (isStaff) => (isStaff ? 'Search, view, create, and update policies' : 'Search and view your policies'),
-    suggestions: (isStaff) => (isStaff ? STAFF_POLICY_SUGGESTIONS : CUSTOMER_POLICY_SUGGESTIONS),
+    subtitle: (isStaff) =>
+      isStaff
+        ? 'Search, view, create, and update policies'
+        : 'Search and view your policies',
+    suggestions: (isStaff) =>
+      isStaff ? STAFF_POLICY_SUGGESTIONS : CUSTOMER_POLICY_SUGGESTIONS,
   },
   claims: {
     label: 'Claims Agent',
     initials: 'CA',
     api: claimsAgentApi,
     placeholder: 'Ask about a claim...',
-    subtitle: (isStaff) => (isStaff ? 'Search, review, and process claims' : 'File and check the status of your claims'),
-    suggestions: (isStaff) => (isStaff ? STAFF_CLAIMS_SUGGESTIONS : CUSTOMER_CLAIMS_SUGGESTIONS),
+    subtitle: (isStaff) =>
+      isStaff
+        ? 'Search, review, and process claims'
+        : 'File and check the status of your claims',
+    suggestions: (isStaff) =>
+      isStaff ? STAFF_CLAIMS_SUGGESTIONS : CUSTOMER_CLAIMS_SUGGESTIONS,
   },
   renewal: {
     label: 'Renewal Agent',
     initials: 'RA',
     api: renewalAgentApi,
     placeholder: 'Ask about a renewal...',
-    subtitle: (isStaff) => (isStaff ? 'Search, review, and process renewals' : 'Request and track your policy renewals'),
+    subtitle: (isStaff) =>
+      isStaff
+        ? 'Search, review, and process renewals'
+        : 'Request and track your policy renewals',
     suggestions: () => RENEWAL_SUGGESTIONS,
   },
 }
 
 function errorMessage(err) {
-  return err.response?.data?.message || 'Something went wrong talking to the assistant.'
+  return (
+    err.response?.data?.message ||
+    'Something went wrong talking to the assistant.'
+  )
 }
 
 // Both agent endpoints are single-turn/stateless by design -- neither has memory of earlier
@@ -117,7 +145,9 @@ function errorMessage(err) {
 // even though the UI only shows a short caption when a card is rendered (see hasStructuredResult
 // below), so the agent still gets its own prior answers as context.
 function buildPromptWithHistory(history, newMessage) {
-  const recent = history.slice(-HISTORY_TURNS_FOR_CONTEXT).filter((m) => !m.isError)
+  const recent = history
+    .slice(-HISTORY_TURNS_FOR_CONTEXT)
+    .filter((m) => !m.isError)
   if (recent.length === 0) return newMessage
 
   const context = recent
@@ -128,10 +158,6 @@ function buildPromptWithHistory(history, newMessage) {
 
 function makeId() {
   return crypto.randomUUID()
-}
-
-function money(amount) {
-  return `$${Number(amount).toLocaleString()}`
 }
 
 function formatDate(isoInstant) {
@@ -146,19 +172,23 @@ function PolicySummary({ policy }) {
     <div className={styles.resultCard}>
       <div className={styles.resultCardHeader}>
         <div>
-          <span className={styles.resultPrimaryLabel}>{policy.policyNumber}</span>
-          <span className={styles.resultSecondaryLabel}>{policy.policyType}</span>
+          <span className={styles.resultPrimaryLabel}>
+            {policy.policyNumber}
+          </span>
+          <span className={styles.resultSecondaryLabel}>
+            {policy.policyType}
+          </span>
         </div>
         <StatusBadge status={policy.status} />
       </div>
       <div className={styles.resultGrid}>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Coverage</span>
-          <strong>{money(policy.coverageAmount)}</strong>
+          <strong>{formatCurrency(policy.coverageAmount)}</strong>
         </div>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Premium</span>
-          <strong>{money(policy.premiumAmount)}</strong>
+          <strong>{formatCurrency(policy.premiumAmount)}</strong>
         </div>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Start Date</span>
@@ -186,8 +216,12 @@ function PolicyListSummary({ policies }) {
         {shown.map((policy) => (
           <div key={policy.id} className={styles.resultListItem}>
             <div>
-              <span className={styles.resultPrimaryLabel}>{policy.policyNumber}</span>
-              <span className={styles.resultSecondaryLabel}>{policy.policyType}</span>
+              <span className={styles.resultPrimaryLabel}>
+                {policy.policyNumber}
+              </span>
+              <span className={styles.resultSecondaryLabel}>
+                {policy.policyType}
+              </span>
             </div>
             <div className={styles.resultListItemMeta}>
               <span className={styles.resultLabel}>{policy.endDate}</span>
@@ -198,7 +232,8 @@ function PolicyListSummary({ policies }) {
       </div>
       {remaining > 0 && (
         <p className={styles.resultListFooter}>
-          +{remaining} more &mdash; ask to narrow your search (by type, status, or customer) to see them.
+          +{remaining} more &mdash; ask to narrow your search (by type, status,
+          or customer) to see them.
         </p>
       )}
     </div>
@@ -215,18 +250,24 @@ function ClaimSummary({ claim }) {
       <div className={styles.resultCardHeader}>
         <div>
           <span className={styles.resultPrimaryLabel}>{claim.claimNumber}</span>
-          <span className={styles.resultSecondaryLabel}>{claim.policyNumber}</span>
+          <span className={styles.resultSecondaryLabel}>
+            {claim.policyNumber}
+          </span>
         </div>
         <StatusBadge status={claim.status} />
       </div>
       <div className={styles.resultGrid}>
         <div className={styles.resultGridItem}>
-          <span className={styles.resultLabel}>Claim Amount</span>
-          <strong>{money(claim.claimAmount)}</strong>
+          <span className={styles.resultLabel}>Claim Amount (INR)</span>
+          <strong>{formatCurrency(claim.claimAmount)}</strong>
         </div>
         <div className={styles.resultGridItem}>
-          <span className={styles.resultLabel}>Approved Amount</span>
-          <strong>{claim.approvedAmount != null ? money(claim.approvedAmount) : '—'}</strong>
+          <span className={styles.resultLabel}>Approved Amount (INR)</span>
+          <strong>
+            {claim.approvedAmount != null
+              ? formatCurrency(claim.approvedAmount)
+              : '—'}
+          </strong>
         </div>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Incident Date</span>
@@ -258,11 +299,17 @@ function ClaimListSummary({ claims }) {
         {shown.map((claim) => (
           <div key={claim.id} className={styles.resultListItem}>
             <div>
-              <span className={styles.resultPrimaryLabel}>{claim.claimNumber}</span>
-              <span className={styles.resultSecondaryLabel}>{claim.policyNumber}</span>
+              <span className={styles.resultPrimaryLabel}>
+                {claim.claimNumber}
+              </span>
+              <span className={styles.resultSecondaryLabel}>
+                {claim.policyNumber}
+              </span>
             </div>
             <div className={styles.resultListItemMeta}>
-              <span className={styles.resultLabel}>{money(claim.claimAmount)}</span>
+              <span className={styles.resultLabel}>
+                {formatCurrency(claim.claimAmount)}
+              </span>
               <StatusBadge status={claim.status} />
             </div>
           </div>
@@ -270,7 +317,8 @@ function ClaimListSummary({ claims }) {
       </div>
       {remaining > 0 && (
         <p className={styles.resultListFooter}>
-          +{remaining} more &mdash; ask to narrow your search (by policy or status) to see them.
+          +{remaining} more &mdash; ask to narrow your search (by policy or
+          status) to see them.
         </p>
       )}
     </div>
@@ -286,14 +334,16 @@ function RenewalSummary({ renewal }) {
     <div className={styles.resultCard}>
       <div className={styles.resultCardHeader}>
         <div>
-          <span className={styles.resultPrimaryLabel}>{renewal.policyNumber}</span>
+          <span className={styles.resultPrimaryLabel}>
+            {renewal.policyNumber}
+          </span>
         </div>
         <StatusBadge status={renewal.status} />
       </div>
       <div className={styles.resultGrid}>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Renewal Premium</span>
-          <strong>{money(renewal.revisedPremiumAmount)}</strong>
+          <strong>{formatCurrency(renewal.revisedPremiumAmount)}</strong>
         </div>
         <div className={styles.resultGridItem}>
           <span className={styles.resultLabel}>Previous End Date</span>
@@ -304,8 +354,12 @@ function RenewalSummary({ renewal }) {
           <strong>{renewal.newEndDate}</strong>
         </div>
         <div className={styles.resultGridItem}>
-          <span className={styles.resultLabel}>{renewal.decidedAt ? 'Decided' : 'Requested'}</span>
-          <strong>{formatDate(renewal.decidedAt ?? renewal.requestedAt)}</strong>
+          <span className={styles.resultLabel}>
+            {renewal.decidedAt ? 'Decided' : 'Requested'}
+          </span>
+          <strong>
+            {formatDate(renewal.decidedAt ?? renewal.requestedAt)}
+          </strong>
         </div>
       </div>
     </div>
@@ -325,11 +379,17 @@ function RenewalListSummary({ renewals }) {
         {shown.map((renewal) => (
           <div key={renewal.id} className={styles.resultListItem}>
             <div>
-              <span className={styles.resultPrimaryLabel}>{renewal.policyNumber}</span>
-              <span className={styles.resultSecondaryLabel}>{renewal.newEndDate}</span>
+              <span className={styles.resultPrimaryLabel}>
+                {renewal.policyNumber}
+              </span>
+              <span className={styles.resultSecondaryLabel}>
+                {renewal.newEndDate}
+              </span>
             </div>
             <div className={styles.resultListItemMeta}>
-              <span className={styles.resultLabel}>{money(renewal.revisedPremiumAmount)}</span>
+              <span className={styles.resultLabel}>
+                {formatCurrency(renewal.revisedPremiumAmount)}
+              </span>
               <StatusBadge status={renewal.status} />
             </div>
           </div>
@@ -337,7 +397,8 @@ function RenewalListSummary({ renewals }) {
       </div>
       {remaining > 0 && (
         <p className={styles.resultListFooter}>
-          +{remaining} more &mdash; ask to narrow your search (by policy or status) to see them.
+          +{remaining} more &mdash; ask to narrow your search (by policy or
+          status) to see them.
         </p>
       )}
     </div>
@@ -372,7 +433,11 @@ function renderListResult(resultKind, data) {
   }
 }
 
-const RESULT_KIND_PLURAL = { policy: 'policies', claim: 'claims', renewal: 'renewals' }
+const RESULT_KIND_PLURAL = {
+  policy: 'policies',
+  claim: 'claims',
+  renewal: 'renewals',
+}
 
 function pluralizeResultKind(kind, count) {
   return count === 1 ? kind : (RESULT_KIND_PLURAL[kind] ?? `${kind}s`)
@@ -386,11 +451,13 @@ function pluralizeResultKind(kind, count) {
 function extractResults(data) {
   const results = []
   if (data.policy) results.push({ kind: 'policy', single: data.policy })
-  if (data.policies?.length) results.push({ kind: 'policy', list: data.policies })
+  if (data.policies?.length)
+    results.push({ kind: 'policy', list: data.policies })
   if (data.claim) results.push({ kind: 'claim', single: data.claim })
   if (data.claims?.length) results.push({ kind: 'claim', list: data.claims })
   if (data.renewal) results.push({ kind: 'renewal', single: data.renewal })
-  if (data.renewals?.length) results.push({ kind: 'renewal', list: data.renewals })
+  if (data.renewals?.length)
+    results.push({ kind: 'renewal', list: data.renewals })
   return results
 }
 
@@ -408,7 +475,11 @@ function SourcesSection({ sources }) {
       <div className={styles.sourcesList}>
         {sources.map((source) => (
           <span key={source} className={styles.sourceChip}>
-            <DocumentIcon className={styles.sourceChipIcon} width={14} height={14} />
+            <DocumentIcon
+              className={styles.sourceChipIcon}
+              width={14}
+              height={14}
+            />
             {source}
           </span>
         ))}
@@ -417,262 +488,634 @@ function SourcesSection({ sources }) {
   )
 }
 
+// Persist conversation text only with explicit consent: document contents and result DTOs
+// never enter localStorage by default. Session metadata remains available to navigation.
 export function ChatPage() {
   const { user } = useAuth()
-  const isStaff = STAFF_ROLES.has(user?.role)
-
+  const [params, setParams] = useSearchParams()
+  const username = user?.username
+  const storageKey = username ? `insuranceai.chats.${username}` : null
+  const routeId = params.get('chat')
+  const promptParam = params.get('prompt')
   const [selectedAgent, setSelectedAgent] = useState('orchestrator')
-  const agent = AGENT_CONFIG[selectedAgent]
-  const suggestions = agent.suggestions(isStaff)
-
   const [messages, setMessages] = useState([])
+  const [historyOwner, setHistoryOwner] = useState(username)
   const [input, setInput] = useState('')
+  const [sessionId, setSessionId] = useState(null)
   const [isSending, setIsSending] = useState(false)
-  const [lastFailedMessage, setLastFailedMessage] = useState(null)
-
+  const [failure, setFailure] = useState(null)
+  const [storageError, setStorageError] = useState('')
+  const [toast, setToast] = useState('')
+  const [saveText, setSaveText] = useState(false)
+  const [showBottom, setShowBottom] = useState(false)
+  const mounted = useRef(false)
+  const generation = useRef(0)
+  const pending = useRef(false)
+  const currentId = useRef(null)
+  const currentUser = useRef(username)
   const messageListRef = useRef(null)
   const textareaRef = useRef(null)
+  const agent = AGENT_CONFIG[selectedAgent]
+  const isStaff = STAFF_ROLES.has(user?.role)
+  const suggestions =
+    selectedAgent === 'orchestrator'
+      ? [
+          'Explain my insurance policy.',
+          'What does my policy cover?',
+          'How do I file a claim?',
+          'Help me calculate my premium.',
+          'Compare insurance plans.',
+        ]
+      : agent.suggestions(isStaff)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      generation.current += 1
+      pending.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentId.current === routeId && currentUser.current === username) {
+      // Route query parameters are an external source of draft state.
+      // oxlint-disable-next-line react/set-state-in-effect
+      if (promptParam) setInput(promptParam)
+      return
+    }
+    generation.current += 1
+    pending.current = false
+    setIsSending(false)
+    setFailure(null)
+    setSaveText(false)
+    currentUser.current = username
+    setHistoryOwner(username)
+    let session
+    if (storageKey && routeId) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]')
+        session = Array.isArray(saved)
+          ? saved.find((item) => item.id === routeId)
+          : null
+      } catch {
+        setStorageError(
+          'Saved conversations could not be read. You can still chat.',
+        )
+      }
+    }
+    currentId.current = routeId
+    setSessionId(routeId)
+    setSelectedAgent(
+      AGENT_CONFIG[session?.agent] ? session.agent : 'orchestrator',
+    )
+    setMessages(
+      Array.isArray(session?.messages)
+        ? session.messages.filter(
+            (m) =>
+              ['user', 'assistant'].includes(m.role) &&
+              typeof m.content === 'string',
+          )
+        : [],
+    )
+    setSaveText(Boolean(session?.messages?.length))
+    setInput(promptParam || '')
+  }, [routeId, promptParam, username, storageKey])
+
+  useEffect(() => {
+    if (
+      historyOwner !== username ||
+      !storageKey ||
+      !sessionId ||
+      !messages.length ||
+      currentId.current !== sessionId ||
+      currentUser.current !== username
+    )
+      return
+    try {
+      const raw = JSON.parse(localStorage.getItem(storageKey) || '[]')
+      const sessions = Array.isArray(raw) ? raw : []
+      const first = messages.find((m) => m.role === 'user')
+      const entry = {
+        id: sessionId,
+        title: saveText
+          ? first?.content.slice(0, 64) || 'Conversation'
+          : 'Private conversation',
+        updatedAt: new Date().toISOString(),
+        agent: selectedAgent,
+        messages: saveText
+          ? messages.map(
+              ({ id, role, content, createdAt, isError, sources }) => ({
+                id,
+                role,
+                content: sources?.length
+                  ? '[Document-based response omitted from device history. Ask again to retrieve it.]'
+                  : content,
+                createdAt,
+                isError,
+              }),
+            )
+          : [],
+      }
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(
+          [entry, ...sessions.filter((s) => s.id !== sessionId)].slice(0, 50),
+        ),
+      )
+      window.dispatchEvent(new Event('insuranceai:chats-changed'))
+    } catch {
+      // Surface failure while synchronizing with external browser storage.
+      // oxlint-disable-next-line react/set-state-in-effect
+      setStorageError(
+        'Conversation could not be saved on this device. Your current chat is still available here.',
+      )
+    }
+  }, [
+    messages,
+    selectedAgent,
+    sessionId,
+    storageKey,
+    username,
+    saveText,
+    historyOwner,
+  ])
 
   useEffect(() => {
     const el = messageListRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (el && (messages.length || isSending)) el.scrollTop = el.scrollHeight
   }, [messages, isSending])
-
   useEffect(() => {
     const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`
+    if (el) {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`
+    }
   }, [input])
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(''), 4500)
+    return () => clearTimeout(timer)
+  }, [toast])
 
-  async function sendToAgent(agentKey, text, historySnapshot) {
+  async function sendToAgent(text, history, agentKey = selectedAgent) {
+    if (pending.current) return
+    pending.current = true
     setIsSending(true)
+    const token = ++generation.current
+    const valid = () => mounted.current && generation.current === token
     try {
-      const prompt = buildPromptWithHistory(historySnapshot, text)
-      const data = await AGENT_CONFIG[agentKey].api.chat({ message: prompt })
-      const results = extractResults(data)
-      const sources = Array.isArray(data.sources) ? data.sources : []
+      const data = await AGENT_CONFIG[agentKey].api.chat({
+        message: buildPromptWithHistory(history, text),
+      })
+      if (!valid()) return
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: 'assistant', content: data.reply, results, sources },
+        {
+          id: makeId(),
+          role: 'assistant',
+          content: data.reply || 'No response was returned.',
+          results: extractResults(data),
+          sources: Array.isArray(data.sources) ? data.sources : [],
+          createdAt: new Date().toISOString(),
+        },
       ])
-      setLastFailedMessage(null)
+      setFailure(null)
     } catch (err) {
+      if (!valid()) return
+      const id = makeId()
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: 'assistant', content: errorMessage(err), isError: true },
+        {
+          id,
+          role: 'assistant',
+          content: errorMessage(err),
+          isError: true,
+          createdAt: new Date().toISOString(),
+        },
       ])
-      setLastFailedMessage(text)
+      setFailure({ id, text, history, agentKey })
     } finally {
-      setIsSending(false)
+      if (valid()) {
+        pending.current = false
+        setIsSending(false)
+      }
     }
   }
-
-  function handleSubmit(rawText) {
-    const text = rawText.trim()
-    if (!text || isSending) return
-
-    const historySnapshot = messages
-    setMessages((prev) => [...prev, { id: makeId(), role: 'user', content: text }])
+  function submit(raw = input) {
+    const text = raw.trim()
+    if (!text || pending.current) return
+    if (!sessionId) {
+      const id = makeId()
+      currentId.current = id
+      setSessionId(id)
+      setParams({ chat: id }, { replace: true })
+    }
+    const history = messages
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: makeId(),
+        role: 'user',
+        content: text,
+        createdAt: new Date().toISOString(),
+      },
+    ])
     setInput('')
-    sendToAgent(selectedAgent, text, historySnapshot)
+    setFailure(null)
+    sendToAgent(text, history)
   }
-
-  function handleRetry() {
-    if (!lastFailedMessage || isSending) return
-    const text = lastFailedMessage
-    const historySnapshot = messages.slice(0, -1)
-    setMessages(historySnapshot)
-    sendToAgent(selectedAgent, text, historySnapshot)
-  }
-
-  function handleNewChat() {
+  function newChat(agentKey = selectedAgent) {
+    if (pending.current) return
+    const id = makeId()
+    currentId.current = id
+    setSessionId(id)
     setMessages([])
+    setFailure(null)
+    setSaveText(false)
     setInput('')
-    setLastFailedMessage(null)
-  }
-
-  // Switching agents starts a fresh conversation -- each backend agent is its own stateless
-  // endpoint with its own tools and system prompt, so there's no meaningful way to carry a
-  // Policy Agent thread over to the Claims Agent (or vice versa).
-  function handleSwitchAgent(agentKey) {
-    if (agentKey === selectedAgent || isSending) return
+    setToast('')
     setSelectedAgent(agentKey)
-    setMessages([])
-    setInput('')
-    setLastFailedMessage(null)
+    setParams({ chat: id }, { replace: true })
   }
-
-  function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      handleSubmit(input)
+  function clearChat() {
+    if (pending.current) return
+    try {
+      if (storageKey && sessionId) {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]')
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify(
+            Array.isArray(saved) ? saved.filter((s) => s.id !== sessionId) : [],
+          ),
+        )
+        window.dispatchEvent(new Event('insuranceai:chats-changed'))
+      }
+    } catch {
+      setStorageError(
+        'Saved conversation could not be removed from this device.',
+      )
+    }
+    newChat()
+  }
+  async function copy(message) {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      if (mounted.current) setToast('Response copied.')
+    } catch {
+      if (mounted.current)
+        setToast(
+          'Could not copy. Select the response text to copy it manually.',
+        )
     }
   }
+  async function regenerate(message) {
+    if (pending.current || !message.sources?.length) return
+    const index = messages.findIndex((m) => m.id === message.id)
+    const questionIndex = messages
+      .slice(0, index)
+      .findLastIndex((m) => m.role === 'user')
+    if (questionIndex < 0) return
+    pending.current = true
+    setIsSending(true)
+    const token = ++generation.current
+    try {
+      const data = await knowledgeAgentApi.chat({
+        message: buildPromptWithHistory(
+          messages.slice(0, questionIndex),
+          messages[questionIndex].content,
+        ),
+      })
+      if (!mounted.current || generation.current !== token) return
+      setMessages((old) =>
+        old.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                content: data.reply || 'No response returned.',
+                sources: data.sources || [],
+                createdAt: new Date().toISOString(),
+              }
+            : m,
+        ),
+      )
+      setToast('Answer regenerated from the knowledge library.')
+    } catch {
+      if (mounted.current && generation.current === token)
+        setToast(
+          'Could not regenerate. Your previous answer is still available.',
+        )
+    } finally {
+      if (mounted.current && generation.current === token) {
+        pending.current = false
+        setIsSending(false)
+      }
+    }
+  }
+  const lastAssistant = messages.findLast(
+    (m) => m.role === 'assistant' && !m.isError,
+  )
 
   return (
-    <>
-      <PageHeader
-        title="AI Assistant"
-        description="Ask about policies, claims, or renewals in plain language — the AI Assistant automatically routes your question to the right specialist, or pick an agent directly. Every agent uses the same tools and permissions as the rest of the app."
-        actions={
-          <button type="button" className={formStyles.secondaryButton} onClick={handleNewChat}>
-            New Chat
+    <section
+      className={styles.chatWindow}
+      aria-label="Insurance AI conversation"
+    >
+      <header className={styles.chatHeader}>
+        <div className={styles.agentIdentity}>
+          <div className={styles.agentAvatar}>
+            <Sparkles size={22} aria-hidden="true" />
+          </div>
+          <div>
+            <div className={styles.agentName}>Insurance AI Assistant</div>
+            <div className={styles.agentSubtitle}>
+              <span className={styles.onlineDot} />
+              Online - Your personal insurance guide
+            </div>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
+          <button type="button" onClick={() => newChat()} disabled={isSending}>
+            <Plus size={16} /> New chat
           </button>
-        }
-      />
-
-      <Card>
-        <div className={styles.chatWindow}>
-          <div className={styles.chatHeader}>
-            <div className={styles.agentIdentity}>
-              <div className={styles.agentAvatar} aria-hidden="true">
-                {agent.initials}
-              </div>
-              <div>
-                <div className={styles.agentName}>{agent.label}</div>
-                <div className={styles.agentSubtitle}>{agent.subtitle(isStaff)}</div>
-              </div>
+          <button
+            type="button"
+            onClick={clearChat}
+            disabled={isSending || !messages.length}
+            aria-label="Clear conversation"
+          >
+            <Trash2 size={17} />
+          </button>
+        </div>
+      </header>
+      <div
+        className={styles.agentSwitcher}
+        role="group"
+        aria-label="Choose an agent; switching starts a new conversation"
+      >
+        {Object.entries(AGENT_CONFIG).map(([key, config]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={selectedAgent === key}
+            className={`${styles.agentTab} ${selectedAgent === key ? styles.agentTabActive : ''}`}
+            disabled={isSending}
+            onClick={() => key !== selectedAgent && newChat(key)}
+          >
+            {config.label}
+          </button>
+        ))}
+      </div>
+      <p className={styles.permissionNote}>
+        {agent.subtitle(isStaff)}. Your account permissions apply.
+      </p>
+      {storageError && (
+        <p role="alert" className={styles.storageError}>
+          {storageError}
+        </p>
+      )}
+      <div
+        className={styles.messageList}
+        ref={messageListRef}
+        role="log"
+        aria-label="Conversation messages"
+        aria-live="polite"
+        aria-busy={isSending}
+        onScroll={(e) => {
+          const el = e.currentTarget
+          setShowBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 100)
+        }}
+      >
+        {!messages.length && (
+          <div className={styles.emptyState}>
+            <div className={styles.welcomeIcon}>
+              <Sparkles size={32} aria-hidden="true" />
             </div>
 
-            <div className={styles.agentSwitcher} role="tablist" aria-label="Choose an agent">
-              {Object.entries(AGENT_CONFIG).map(([key, config]) => (
+            <h1 className={styles.emptyTitle}>
+              Hello! I'm your Insurance AI Assistant.
+            </h1>
+            <p className={styles.emptyMessage}>
+              I'm here to help you understand insurance policies, compare
+              coverage, calculate premiums, and navigate claims.
+            </p>
+            <div className={styles.suggestions}>
+              {suggestions.map((suggestion) => (
                 <button
-                  key={key}
+                  key={suggestion}
                   type="button"
-                  role="tab"
-                  aria-selected={selectedAgent === key}
-                  className={`${styles.agentTab} ${selectedAgent === key ? styles.agentTabActive : ''}`}
-                  onClick={() => handleSwitchAgent(key)}
-                  disabled={isSending}
+                  className={styles.suggestionChip}
+                  onClick={() => {
+                    setInput(suggestion)
+                    textareaRef.current?.focus()
+                  }}
                 >
-                  {config.label}
+                  {suggestion}
+                  <ArrowUp size={16} aria-hidden="true" />
                 </button>
               ))}
             </div>
           </div>
-
-          {messages.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p className={styles.emptyTitle}>What would you like to know?</p>
-              <p className={styles.emptyMessage}>Try one of these, or type your own question below.</p>
-              <div className={styles.suggestions}>
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    className={styles.suggestionChip}
-                    onClick={() => handleSubmit(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+        )}
+        {messages.map((message) => (
+          <article
+            key={message.id}
+            className={`${styles.messageRow} ${message.role === 'user' ? styles.rowUser : styles.rowAssistant}`}
+            aria-label={
+              message.role === 'user' ? 'You' : 'Insurance AI Assistant'
+            }
+          >
+            {message.role === 'assistant' && (
+              <div className={styles.messageAvatar}>
+                <Sparkles size={16} aria-hidden="true" />
               </div>
-            </div>
-          ) : (
-            <div className={styles.messageList} ref={messageListRef} role="log" aria-live="polite">
-              {messages.map((message) => {
-                const results = message.results ?? []
-                const hasStructuredResult = results.length > 0
-                const showBubble = message.role === 'user' || !hasStructuredResult
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`${styles.messageRow} ${message.role === 'user' ? styles.rowUser : styles.rowAssistant}`}
-                  >
-                    {message.role === 'assistant' && (
-                      <div className={styles.messageAvatar} aria-hidden="true">
-                        AI
-                      </div>
-                    )}
-                    <div className={styles.messageColumn}>
-                      {/* When a structured result is available, the card below is the primary
-                          response -- the model's full paragraph is kept in state (for follow-up
-                          context) but not shown, so the conversation stays scannable. */}
-                      {showBubble && (
-                        <div
-                          className={`${styles.bubble} ${
-                            message.role === 'user'
-                              ? styles.bubbleUser
-                              : message.isError
-                                ? styles.bubbleError
-                                : styles.bubbleAssistant
-                          }`}
+            )}
+            <div className={styles.messageColumn}>
+              <div
+                className={`${styles.bubble} ${message.role === 'user' ? styles.bubbleUser : message.isError ? styles.bubbleError : styles.bubbleAssistant}`}
+              >
+                {message.role === 'user' || message.isError ? (
+                  message.content
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    skipHtml
+                    components={{
+                      img: () => null,
+                      a: ({ children, href }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          {message.content}
-                        </div>
-                      )}
-
-                      {results.map((result, index) => (
-                        <div key={`${result.kind}-${result.single ? 'single' : 'list'}-${index}`}>
-                          {result.single && (
-                            <>
-                              <p className={styles.resultCaption}>Here's the {result.kind} you requested.</p>
-                              {renderSingleResult(result.kind, result.single)}
-                            </>
-                          )}
-                          {result.list && (
-                            <>
-                              <p className={styles.resultCaption}>
-                                Found {result.list.length} matching {pluralizeResultKind(result.kind, result.list.length)}.
-                              </p>
-                              {renderListResult(result.kind, result.list)}
-                            </>
-                          )}
-                        </div>
-                      ))}
-
-                      <SourcesSection sources={message.sources} />
-
-                      {message.isError && (
-                        <button type="button" className={styles.retryButton} onClick={handleRetry}>
-                          Retry
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {isSending && (
-                <div className={`${styles.messageRow} ${styles.rowAssistant}`}>
-                  <div className={styles.messageAvatar} aria-hidden="true">
-                    AI
-                  </div>
-                  <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.typingBubble}`}>
-                    <span className={styles.typingDot} />
-                    <span className={styles.typingDot} />
-                    <span className={styles.typingDot} />
-                  </div>
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                )}
+              </div>
+              {(message.results || []).map((result, index) => (
+                <div key={`${result.kind}-${index}`}>
+                  <p className={styles.resultCaption}>
+                    {result.single
+                      ? `Your ${result.kind} details`
+                      : `${result.list.length} matching ${pluralizeResultKind(result.kind, result.list.length)}`}
+                  </p>
+                  {result.single
+                    ? renderSingleResult(result.kind, result.single)
+                    : renderListResult(result.kind, result.list)}
+                </div>
+              ))}
+              <SourcesSection sources={message.sources} />
+              <div className={styles.messageMeta}>
+                {message.createdAt && (
+                  <time dateTime={message.createdAt}>
+                    {new Date(message.createdAt).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </time>
+                )}
+                {message.role === 'assistant' && !message.isError && (
+                  <button
+                    type="button"
+                    onClick={() => copy(message)}
+                    aria-label="Copy response"
+                  >
+                    <Copy size={14} /> Copy
+                  </button>
+                )}
+                {message.id === lastAssistant?.id &&
+                  Boolean(message.sources?.length) && (
+                    <button
+                      type="button"
+                      disabled={isSending}
+                      onClick={() => regenerate(message)}
+                    >
+                      <RotateCcw size={14} /> Regenerate
+                    </button>
+                  )}
+              </div>
+              {message.isError && failure?.id === message.id && (
+                <div className={styles.retryArea}>
+                  <p>
+                    The request may have completed. Check your records before
+                    retrying an action.
+                  </p>
+                  <button
+                    type="button"
+                    className={styles.retryButton}
+                    disabled={isSending}
+                    onClick={() => {
+                      if (!pending.current) {
+                        setFailure(null)
+                        sendToAgent(
+                          failure.text,
+                          failure.history,
+                          failure.agentKey,
+                        )
+                      }
+                    }}
+                  >
+                    Retry last request
+                  </button>
                 </div>
               )}
             </div>
-          )}
-
-          <div className={styles.composer}>
-            <textarea
-              ref={textareaRef}
-              className={styles.textarea}
-              placeholder={agent.placeholder}
-              rows={1}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isSending}
-            />
-            <button
-              type="button"
-              className={styles.sendButton}
-              onClick={() => handleSubmit(input)}
-              disabled={isSending || !input.trim()}
-            >
-              Send
-            </button>
+          </article>
+        ))}
+        {isSending && (
+          <div className={styles.thinking} role="status">
+            <Sparkles size={18} aria-hidden="true" />
+            <span className={styles.typingDot} /> {agent.label} is thinking...
           </div>
-          <p className={styles.hint}>Enter to send &middot; Shift+Enter for a new line</p>
+        )}
+      </div>
+      {showBottom && (
+        <button
+          type="button"
+          className={styles.scrollBottom}
+          onClick={() =>
+            messageListRef.current?.scrollTo({
+              top: messageListRef.current.scrollHeight,
+              behavior: 'smooth',
+            })
+          }
+        >
+          <ArrowDown size={16} /> Latest messages
+        </button>
+      )}
+      <footer className={styles.composerFooter}>
+        <div className={styles.composer}>
+          <Link
+            className={styles.attachButton}
+            to="/documents"
+            aria-label="Open document library"
+            title="Manage documents in the document library"
+          >
+            <Paperclip size={20} />
+          </Link>
+          <textarea
+            ref={textareaRef}
+            className={styles.textarea}
+            disabled={isSending}
+            aria-label="Message your insurance assistant"
+            placeholder={agent.placeholder}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing &&
+                e.keyCode !== 229
+              ) {
+                e.preventDefault()
+                submit()
+              }
+            }}
+          />
+          <button
+            type="button"
+            className={styles.sendButton}
+            onClick={() => submit()}
+            disabled={isSending || !input.trim()}
+            aria-label="Send message"
+          >
+            <ArrowUp size={20} />
+          </button>
         </div>
-      </Card>
-    </>
+        <div className={styles.composerNotes}>
+          <span>Enter to send - Shift+Enter for a new line</span>
+          <Link to="/documents">Manage documents</Link>
+        </div>
+        <label className={styles.historyConsent}>
+          <input
+            type="checkbox"
+            checked={saveText}
+            disabled={isSending}
+            onChange={(e) => setSaveText(e.target.checked)}
+          />{' '}
+          Save chat text on this device. Leave off for sensitive information or
+          document content.
+        </label>
+        <p className={styles.hint}>
+          AI can make mistakes. Verify important details in your policy
+          documents.
+        </p>
+      </footer>
+      <div
+        className={styles.toast}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {toast}
+      </div>
+    </section>
   )
 }

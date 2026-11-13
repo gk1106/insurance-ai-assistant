@@ -16,13 +16,13 @@
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-5);
+  padding: 36px;
 }
 
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(16, 24, 40, 0.45);
+  background: rgb(41 49 36 / 0.5);
   backdrop-filter: blur(2px);
   z-index: 20;
   display: none;

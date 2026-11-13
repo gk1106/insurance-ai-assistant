@@ -13,7 +13,7 @@
 # CUSTOMER, and there is no "create staff user" endpoint). Bootstrapping the
 # first admin therefore requires one direct, minimal SQL statement that only
 # flips a role column on an already-registered (and correctly password-
-# hashed) user — this is a standard, common bootstrap pattern, not a
+# hashed) user â€” this is a standard, common bootstrap pattern, not a
 # workaround of business rules.
 #
 # Requirements: the backend + postgres containers from backend/docker-compose.yml
@@ -22,9 +22,10 @@
 #
 # Usage: bash backend/scripts/seed-dev-data.sh
 # Re-running against a non-empty DB just adds more data (no idempotency
-# guard) — reset with `docker compose down -v && docker compose up -d` first
+# guard) â€” reset with `docker compose down -v && docker compose up -d` first
 # if you want a clean slate.
 
+# All monetary amounts below are numeric INR, without conversion.
 set -euo pipefail
 
 API="http://localhost:8082/api"
@@ -35,7 +36,7 @@ TMP="./.seed-tmp-$$"
 mkdir -p "$TMP"
 trap 'rm -rf "$TMP"' EXIT
 
-# Fixture password for seeded dev/test accounts only — not a real secret.
+# Fixture password for seeded dev/test accounts only â€” not a real secret.
 SEED_PASSWORD="DevPassword123!"
 
 json() { node -pe "JSON.parse(require('fs').readFileSync('$1','utf8'))$2"; }
@@ -47,7 +48,7 @@ curl -sf -X POST "$API/auth/register" \
   -o "$TMP/register_admin.json"
 echo "  registered: $(json "$TMP/register_admin.json" .username)"
 
-echo "== 2. Promoting seed_admin to ADMIN (the one direct SQL step — see header comment) =="
+echo "== 2. Promoting seed_admin to ADMIN (the one direct SQL step â€” see header comment) =="
 docker exec "$DB_CONTAINER" psql -U postgres -d insurance_ai -q \
   -c "UPDATE users SET role = 'ADMIN' WHERE username = 'seed_admin';"
 
@@ -63,15 +64,15 @@ auth_curl() { curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type:
 
 echo "== 4. Creating the seed customer =="
 auth_curl -X POST "$API/customers" -d '{
-  "firstName": "Jamie",
-  "lastName": "Rivera",
-  "email": "jamie.rivera@example.dev",
-  "phoneNumber": "555-0142",
+  "firstName": "Aarav",
+  "lastName": "Sharma",
+  "email": "aarav.sharma@example.dev",
+  "phoneNumber": "+91 90000 00042",
   "dateOfBirth": "1988-04-12",
-  "addressLine": "482 Maple Street",
-  "city": "Springfield",
-  "postalCode": "62704",
-  "country": "USA"
+  "addressLine": "42 MG Road",
+  "city": "Pune",
+  "postalCode": "411001",
+  "country": "India"
 }' -o "$TMP/customer.json"
 CUSTOMER_ID="$(json "$TMP/customer.json" .id)"
 echo "  customer id: $CUSTOMER_ID"
@@ -79,11 +80,11 @@ echo "  customer id: $CUSTOMER_ID"
 echo "== 5. Registering the CUSTOMER-role user, linked to that customer =="
 curl -sf -X POST "$API/auth/register" \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"jamie_rivera\",\"email\":\"jamie.login@example.dev\",\"password\":\"$SEED_PASSWORD\",\"customerId\":\"$CUSTOMER_ID\"}" \
+  -d "{\"username\":\"aarav_sharma\",\"email\":\"aarav.login@example.dev\",\"password\":\"$SEED_PASSWORD\",\"customerId\":\"$CUSTOMER_ID\"}" \
   -o "$TMP/register_customer.json"
 echo "  linked user: $(json "$TMP/register_customer.json" .username) (role $(json "$TMP/register_customer.json" .role))"
 
-echo "== 6. Creating policies (only ACTIVE/CANCELLED are reachable via the API — see header) =="
+echo "== 6. Creating policies (only ACTIVE/CANCELLED are reachable via the API â€” see header) =="
 
 # Policy A: ACTIVE, ends in 20 days -> shows up in the "expiring within 30 days" panel
 END_A="$(node -pe "new Date(Date.now()+20*86400000).toISOString().slice(0,10)")"
@@ -185,4 +186,4 @@ echo "  claim 5: $(json "$TMP/claim5_rejected.json" .claimNumber) -> $(json "$TM
 echo ""
 echo "== Done =="
 echo "Staff login  -> username: seed_admin       password: $SEED_PASSWORD  (role: ADMIN)"
-echo "Customer login -> username: jamie_rivera   password: $SEED_PASSWORD  (role: CUSTOMER, linked to customer $CUSTOMER_ID)"
+echo "Customer login -> username: aarav_sharma   password: $SEED_PASSWORD  (role: CUSTOMER, linked to customer $CUSTOMER_ID)"

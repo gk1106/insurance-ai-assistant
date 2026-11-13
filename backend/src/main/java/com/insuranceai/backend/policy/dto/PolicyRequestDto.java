@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public record PolicyRequestDto(
         @NotNull UUID customerId,
         @NotNull PolicyType policyType,

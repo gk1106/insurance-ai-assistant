@@ -27,7 +27,7 @@ public class AiConfig {
     @Bean
     public ChatClient policyAgentChatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultSystem(POLICY_AGENT_SYSTEM_PROMPT)
+                .defaultSystem(IndiaCurrencyPolicy.systemPrompt(POLICY_AGENT_SYSTEM_PROMPT))
                 .build();
     }
 
@@ -51,7 +51,7 @@ public class AiConfig {
     @Bean
     public ChatClient claimsAgentChatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultSystem(CLAIMS_AGENT_SYSTEM_PROMPT)
+                .defaultSystem(IndiaCurrencyPolicy.systemPrompt(CLAIMS_AGENT_SYSTEM_PROMPT))
                 .build();
     }
 
@@ -76,7 +76,7 @@ public class AiConfig {
     @Bean
     public ChatClient renewalAgentChatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultSystem(RENEWAL_AGENT_SYSTEM_PROMPT)
+                .defaultSystem(IndiaCurrencyPolicy.systemPrompt(RENEWAL_AGENT_SYSTEM_PROMPT))
                 .build();
     }
 
@@ -102,7 +102,7 @@ public class AiConfig {
     @Bean
     public ChatClient knowledgeAgentChatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultSystem(KNOWLEDGE_AGENT_SYSTEM_PROMPT)
+                .defaultSystem(IndiaCurrencyPolicy.systemPrompt(KNOWLEDGE_AGENT_SYSTEM_PROMPT))
                 .build();
     }
 

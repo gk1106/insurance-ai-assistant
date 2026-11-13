@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useState } from 'react'
+import { formatCurrency } from '../utils/currency'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
@@ -12,22 +13,43 @@ import { policyApi } from '../api/policyApi'
 import tableStyles from '../components/ui/Table.module.css'
 import formStyles from '../components/ui/Form.module.css'
 
+import { StatCard } from '../components/ui/StatCard'
+import styles from './ClaimsPage.module.css'
+
 const PAGE_SIZE = 20
 const STAFF_ROLES = new Set(['ADMIN', 'AGENT'])
 
-const EMPTY_CLAIM_FORM = { policyId: '', claimAmount: '', incidentDate: '', description: '' }
+const EMPTY_CLAIM_FORM = {
+  policyId: '',
+  claimAmount: '',
+  incidentDate: '',
+  description: '',
+}
 
 function errorMessage(err) {
-  return err.response?.data?.message || 'Something went wrong. Please try again.'
+  return (
+    err.response?.data?.message || 'Something went wrong. Please try again.'
+  )
 }
 
 export function ClaimsPage() {
   const { user } = useAuth()
   const isStaff = STAFF_ROLES.has(user?.role)
 
+  const dialogRef = useRef(null)
+  const [selectedId, setSelectedId] = useState(null)
+  useEffect(() => {
+    if (selectedId && !dialogRef.current.open) dialogRef.current.showModal()
+    if (!selectedId && dialogRef.current.open) dialogRef.current.close()
+  }, [selectedId])
+
   const [page, setPage] = useState(0)
   const [refreshIndex, setRefreshIndex] = useState(0)
-  const [state, setState] = useState({ status: 'loading', data: null, error: null })
+  const [state, setState] = useState({
+    status: 'loading',
+    data: null,
+    error: null,
+  })
   const [actionError, setActionError] = useState(null)
 
   const [myPolicies, setMyPolicies] = useState([])
@@ -60,14 +82,21 @@ export function ClaimsPage() {
           setState({
             status: 'error',
             data: null,
-            error: 'Your account is not linked to a customer record, so no claims can be shown.',
+            error:
+              'Your account is not linked to a customer record, so no claims can be shown.',
           })
           return
         }
 
-        const policies = await policyApi.list({ customerId: user.customerId, page: 0, size: 200 })
+        const policies = await policyApi.list({
+          customerId: user.customerId,
+          page: 0,
+          size: 200,
+        })
         const claimPages = await Promise.all(
-          policies.content.map((policy) => claimApi.listByPolicy(policy.id, { page: 0, size: 100 })),
+          policies.content.map((policy) =>
+            claimApi.listByPolicy(policy.id, { page: 0, size: 100 }),
+          ),
         )
         if (cancelled) return
 
@@ -95,7 +124,9 @@ export function ClaimsPage() {
 
   useEffect(() => {
     let cancelled = false
-    const params = isStaff ? { page: 0, size: 200 } : { customerId: user?.customerId, page: 0, size: 200 }
+    const params = isStaff
+      ? { page: 0, size: 200 }
+      : { customerId: user?.customerId, page: 0, size: 200 }
 
     if (!isStaff && !user?.customerId) return undefined
 
@@ -169,7 +200,9 @@ export function ClaimsPage() {
     setActionError(null)
     setPendingActionId(claimId)
     try {
-      await claimApi.approve(claimId, { approvedAmount: Number(approveAmount) })
+      await claimApi.approve(claimId, {
+        approvedAmount: Number(approveAmount),
+      })
       setReviewMode(null)
       refresh()
     } catch (err) {
@@ -206,10 +239,24 @@ export function ClaimsPage() {
     setActionError(null)
   }
 
+  const claims = state.data?.content ?? []
+  const selected = claims.find((claim) => claim.id === selectedId)
+  const lifecycle =
+    selected?.status === 'REJECTED'
+      ? ['SUBMITTED', 'REJECTED']
+      : ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'PAID']
+  const currentStep = lifecycle.indexOf(selected?.status)
+  const statusLabel = (status) =>
+    status
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replace(/^./, (c) => c.toUpperCase())
+  const dateLabel = (value) =>
+    value ? new Date(value).toLocaleString() : 'Not recorded'
   const colSpan = 7
 
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader
         title="Claims"
         description="Review and manage insurance claims."
@@ -234,7 +281,9 @@ export function ClaimsPage() {
               <select
                 className={formStyles.select}
                 value={fileForm.policyId}
-                onChange={(e) => setFileForm({ ...fileForm, policyId: e.target.value })}
+                onChange={(e) =>
+                  setFileForm({ ...fileForm, policyId: e.target.value })
+                }
                 required
               >
                 <option value="" disabled>
@@ -250,14 +299,16 @@ export function ClaimsPage() {
             </label>
 
             <label className={formStyles.field}>
-              <span className={formStyles.label}>Claim Amount</span>
+              <span className={formStyles.label}>Claim Amount (INR)</span>
               <input
                 className={formStyles.input}
                 type="number"
                 min="0.01"
                 step="0.01"
                 value={fileForm.claimAmount}
-                onChange={(e) => setFileForm({ ...fileForm, claimAmount: e.target.value })}
+                onChange={(e) =>
+                  setFileForm({ ...fileForm, claimAmount: e.target.value })
+                }
                 required
               />
             </label>
@@ -268,7 +319,9 @@ export function ClaimsPage() {
                 className={formStyles.input}
                 type="date"
                 value={fileForm.incidentDate}
-                onChange={(e) => setFileForm({ ...fileForm, incidentDate: e.target.value })}
+                onChange={(e) =>
+                  setFileForm({ ...fileForm, incidentDate: e.target.value })
+                }
                 required
               />
             </label>
@@ -278,14 +331,20 @@ export function ClaimsPage() {
               <textarea
                 className={formStyles.textarea}
                 value={fileForm.description}
-                onChange={(e) => setFileForm({ ...fileForm, description: e.target.value })}
+                onChange={(e) =>
+                  setFileForm({ ...fileForm, description: e.target.value })
+                }
                 maxLength={2000}
                 required
               />
             </label>
 
             <div className={formStyles.actions}>
-              <button type="submit" className={formStyles.primaryButton} disabled={isFiling}>
+              <button
+                type="submit"
+                className={formStyles.primaryButton}
+                disabled={isFiling}
+              >
                 {isFiling ? 'Filing…' : 'Submit Claim'}
               </button>
             </div>
@@ -296,11 +355,51 @@ export function ClaimsPage() {
       {state.status === 'loading' && <Spinner label="Loading claims…" />}
 
       {state.status === 'error' && (
-        <ErrorState message={state.error} onRetry={() => setRefreshIndex((n) => n + 1)} />
+        <ErrorState
+          message={state.error}
+          onRetry={() => setRefreshIndex((n) => n + 1)}
+        />
+      )}
+
+      {state.status === 'success' && (
+        <>
+          <p className={styles.scope}>
+            Summary of loaded claims{isStaff ? ' on this page' : ''}. Rejected
+            claims are counted separately.
+          </p>
+          <div className={styles.stats}>
+            <StatCard label="Total claims" value={claims.length} />
+            <StatCard
+              label="Awaiting decision"
+              value={
+                claims.filter((claim) =>
+                  ['SUBMITTED', 'UNDER_REVIEW'].includes(claim.status),
+                ).length
+              }
+            />
+            <StatCard
+              label="Approved / paid"
+              value={
+                claims.filter((claim) =>
+                  ['APPROVED', 'PAID'].includes(claim.status),
+                ).length
+              }
+            />
+            <StatCard
+              label="Rejected"
+              value={
+                claims.filter((claim) => claim.status === 'REJECTED').length
+              }
+            />
+          </div>
+        </>
       )}
 
       {state.status === 'success' && state.data.content.length === 0 && (
-        <EmptyState title="No claims yet" message="No claims have been filed yet." />
+        <EmptyState
+          title="No claims yet"
+          message="No claims have been filed yet."
+        />
       )}
 
       {state.status === 'success' && state.data.content.length > 0 && (
@@ -311,8 +410,8 @@ export function ClaimsPage() {
                 <tr>
                   <th>Claim Number</th>
                   <th>Policy Number</th>
-                  <th>Claim Amount</th>
-                  <th>Approved Amount</th>
+                  <th>Claim Amount (INR)</th>
+                  <th>Approved Amount (INR)</th>
                   <th>Incident Date</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -322,12 +421,20 @@ export function ClaimsPage() {
                 {state.data.content.map((claim) => (
                   <Fragment key={claim.id}>
                     <tr>
-                      <td>{claim.claimNumber}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.recordLink}
+                          onClick={() => setSelectedId(claim.id)}
+                        >
+                          {claim.claimNumber}
+                        </button>
+                      </td>
                       <td>{claim.policyNumber}</td>
-                      <td>${Number(claim.claimAmount).toLocaleString()}</td>
+                      <td>{formatCurrency(claim.claimAmount)}</td>
                       <td>
                         {claim.approvedAmount != null
-                          ? `$${Number(claim.approvedAmount).toLocaleString()}`
+                          ? formatCurrency(claim.approvedAmount)
                           : '—'}
                       </td>
                       <td>{claim.incidentDate}</td>
@@ -380,85 +487,97 @@ export function ClaimsPage() {
                       </td>
                     </tr>
 
-                    {reviewMode?.claimId === claim.id && reviewMode.type === 'approve' && (
-                      <tr>
-                        <td colSpan={colSpan}>
-                          <form
-                            className={formStyles.form}
-                            onSubmit={(e) => handleApproveSubmit(e, claim.id)}
-                          >
-                            <label className={formStyles.field}>
-                              <span className={formStyles.label}>Approved Amount</span>
-                              <input
-                                className={formStyles.input}
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                max={claim.claimAmount}
-                                value={approveAmount}
-                                onChange={(e) => setApproveAmount(e.target.value)}
-                                required
-                              />
-                            </label>
-                            <div className={formStyles.actions}>
-                              <button
-                                type="submit"
-                                className={formStyles.primaryButton}
-                                disabled={pendingActionId === claim.id}
-                              >
-                                Confirm Approval
-                              </button>
-                              <button
-                                type="button"
-                                className={formStyles.secondaryButton}
-                                onClick={() => setReviewMode(null)}
-                              >
-                                Close
-                              </button>
-                            </div>
-                          </form>
-                        </td>
-                      </tr>
-                    )}
+                    {reviewMode?.claimId === claim.id &&
+                      reviewMode.type === 'approve' && (
+                        <tr>
+                          <td colSpan={colSpan}>
+                            <form
+                              className={formStyles.form}
+                              onSubmit={(e) => handleApproveSubmit(e, claim.id)}
+                            >
+                              <label className={formStyles.field}>
+                                <span className={formStyles.label}>
+                                  Approved Amount (INR)
+                                </span>
+                                <input
+                                  className={formStyles.input}
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  max={claim.claimAmount}
+                                  value={approveAmount}
+                                  onChange={(e) =>
+                                    setApproveAmount(e.target.value)
+                                  }
+                                  required
+                                />
+                              </label>
+                              <div className={formStyles.actions}>
+                                <button
+                                  type="submit"
+                                  className={formStyles.primaryButton}
+                                  disabled={pendingActionId === claim.id}
+                                >
+                                  Confirm Approval
+                                </button>
+                                <button
+                                  type="button"
+                                  className={formStyles.secondaryButton}
+                                  onClick={() => setReviewMode(null)}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      )}
 
-                    {reviewMode?.claimId === claim.id && reviewMode.type === 'reject' && (
-                      <tr>
-                        <td colSpan={colSpan}>
-                          <form
-                            className={formStyles.form}
-                            onSubmit={(e) => handleRejectSubmit(e, claim.id)}
-                          >
-                            <label className={`${formStyles.field} ${formStyles.wide}`}>
-                              <span className={formStyles.label}>Rejection Reason</span>
-                              <input
-                                className={formStyles.input}
-                                type="text"
-                                maxLength={500}
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                                required
-                              />
-                            </label>
-                            <div className={formStyles.actions}>
-                              <button
-                                type="submit"
-                                className={formStyles.dangerButton}
-                                disabled={pendingActionId === claim.id}
+                    {reviewMode?.claimId === claim.id &&
+                      reviewMode.type === 'reject' && (
+                        <tr>
+                          <td colSpan={colSpan}>
+                            <form
+                              className={formStyles.form}
+                              onSubmit={(e) => handleRejectSubmit(e, claim.id)}
+                            >
+                              <label
+                                className={`${formStyles.field} ${formStyles.wide}`}
                               >
-                                Confirm Rejection
-                              </button>
-                              <button
-                                type="button"
-                                className={formStyles.secondaryButton}
-                                onClick={() => setReviewMode(null)}
-                              >
-                                Close
-                              </button>
-                            </div>
-                          </form>
-                        </td>
-                      </tr>
-                    )}
+                                <span className={formStyles.label}>
+                                  Rejection Reason
+                                </span>
+                                <input
+                                  className={formStyles.input}
+                                  type="text"
+                                  maxLength={500}
+                                  value={rejectReason}
+                                  onChange={(e) =>
+                                    setRejectReason(e.target.value)
+                                  }
+                                  required
+                                />
+                              </label>
+                              <div className={formStyles.actions}>
+                                <button
+                                  type="submit"
+                                  className={formStyles.dangerButton}
+                                  disabled={pendingActionId === claim.id}
+                                >
+                                  Confirm Rejection
+                                </button>
+                                <button
+                                  type="button"
+                                  className={formStyles.secondaryButton}
+                                  onClick={() => setReviewMode(null)}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      )}
                   </Fragment>
                 ))}
               </tbody>
@@ -466,10 +585,95 @@ export function ClaimsPage() {
           </div>
 
           {isStaff && (
-            <Pagination page={page} totalPages={state.data.totalPages} onPageChange={setPage} />
+            <Pagination
+              page={page}
+              totalPages={state.data.totalPages}
+              onPageChange={setPage}
+            />
           )}
         </Card>
       )}
-    </>
+      <dialog
+        ref={dialogRef}
+        className={styles.dialog}
+        aria-labelledby="claim-detail-title"
+        onClose={() => setSelectedId(null)}
+      >
+        {selected && (
+          <>
+            <div className={styles.modalHeader}>
+              <h2 id="claim-detail-title">Claim details</h2>
+              <button type="button" onClick={() => setSelectedId(null)}>
+                Close
+              </button>
+            </div>
+            <p className={styles.number}>{selected.claimNumber}</p>
+            <StatusBadge status={selected.status} />
+            <dl className={styles.facts}>
+              <div>
+                <dt>Policy number</dt>
+                <dd className={styles.number}>{selected.policyNumber}</dd>
+              </div>
+              <div>
+                <dt>Incident date</dt>
+                <dd>{selected.incidentDate}</dd>
+              </div>
+              <div>
+                <dt>Claim amount</dt>
+                <dd>{formatCurrency(selected.claimAmount)}</dd>
+              </div>
+              <div>
+                <dt>Approved amount</dt>
+                <dd>
+                  {selected.approvedAmount != null
+                    ? formatCurrency(selected.approvedAmount)
+                    : 'Not approved'}
+                </dd>
+              </div>
+            </dl>
+            <h3>Description</h3>
+            <p className={styles.description}>
+              {selected.description || 'No description recorded.'}
+            </p>
+            <h3>Claim lifecycle</h3>
+            <ol className={styles.timeline}>
+              {lifecycle.map((status, index) => (
+                <li
+                  key={status}
+                  data-reached={index <= currentStep}
+                  data-rejected={status === 'REJECTED'}
+                  aria-current={status === selected.status ? 'step' : undefined}
+                >
+                  <strong>{statusLabel(status)}</strong>
+                  <span>
+                    {status === 'SUBMITTED'
+                      ? dateLabel(selected.filedAt)
+                      : status === 'REJECTED'
+                        ? dateLabel(selected.resolvedAt)
+                        : status === 'APPROVED' && currentStep >= 2
+                          ? dateLabel(selected.resolvedAt)
+                          : index > currentStep
+                            ? 'Not reached'
+                            : 'Date not recorded'}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {selected.status === 'REJECTED' && (
+              <div className={styles.rejection}>
+                <h3>Rejection reason</h3>
+                <p className={styles.description}>
+                  {selected.rejectionReason || 'No reason recorded.'}
+                </p>
+                <p>
+                  Review history is not provided; rejection can occur before or
+                  during review.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </dialog>
+    </div>
   )
 }

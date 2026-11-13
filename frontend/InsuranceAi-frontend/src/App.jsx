@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeProvider'
 import { AuthProvider } from './context/AuthProvider'
@@ -7,10 +8,44 @@ import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { PoliciesPage } from './pages/PoliciesPage'
-import { ClaimsPage } from './pages/ClaimsPage'
-import { RenewalsPage } from './pages/RenewalsPage'
-import { ChatPage } from './pages/ChatPage'
+const PoliciesPage = lazy(() =>
+  import('./pages/PoliciesPage').then((module) => ({
+    default: module.PoliciesPage,
+  })),
+)
+const ClaimsPage = lazy(() =>
+  import('./pages/ClaimsPage').then((module) => ({
+    default: module.ClaimsPage,
+  })),
+)
+const RenewalsPage = lazy(() =>
+  import('./pages/RenewalsPage').then((module) => ({
+    default: module.RenewalsPage,
+  })),
+)
+const PremiumCalculatorPage = lazy(() =>
+  import('./pages/PremiumCalculatorPage').then((module) => ({
+    default: module.PremiumCalculatorPage,
+  })),
+)
+const DocumentsPage = lazy(() =>
+  import('./pages/DocumentsPage').then((module) => ({
+    default: module.DocumentsPage,
+  })),
+)
+const HistoryPage = lazy(() =>
+  import('./pages/HistoryPage').then((module) => ({
+    default: module.HistoryPage,
+  })),
+)
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((module) => ({
+    default: module.SettingsPage,
+  })),
+)
+const ChatPage = lazy(() =>
+  import('./pages/ChatPage').then((module) => ({ default: module.ChatPage })),
+)
 
 function App() {
   return (
@@ -25,12 +60,19 @@ function App() {
 
             <Route element={<RequireAuth />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route
+                  path="/"
+                  element={<Navigate to="/dashboard" replace />}
+                />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/policies" element={<PoliciesPage />} />
                 <Route path="/claims" element={<ClaimsPage />} />
                 <Route path="/renewals" element={<RenewalsPage />} />
                 <Route path="/assistant" element={<ChatPage />} />
+                <Route path="/calculator" element={<PremiumCalculatorPage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
 

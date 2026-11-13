@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public record PolicyResponseDto(
         UUID id,
         String policyNumber,

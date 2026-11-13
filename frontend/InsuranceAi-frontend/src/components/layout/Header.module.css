@@ -1,116 +1,146 @@
 .header {
   height: var(--header-height);
-  flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 var(--space-5);
-  background: var(--surface-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  gap: 16px;
+  padding: 0 36px;
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 10;
 }
-
-.menuButton {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0;
-  margin-right: var(--space-3);
+.pageName span {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  margin-bottom: 3px;
 }
-
-.menuButton:hover {
-  background: var(--color-bg-inset);
+.pageName strong {
+  font-size: 13px;
+  font-weight: 600;
 }
-
 .spacer {
   flex: 1;
 }
-
-.account {
+.menuButton {
+  display: none;
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  padding: 8px;
+  cursor: pointer;
+}
+.search {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 9px 12px;
+  border-radius: 8px;
 }
-
+.search input {
+  border: 0;
+  outline: 0;
+  width: 170px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 12px;
+}
+.results,
+.dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 230px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 12px;
+}
+.results a,
+.dropdown a,
+.dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.results a:hover,
+.dropdown a:hover,
+.dropdown button:hover {
+  background: var(--color-bg-inset);
+}
+.dropdown p {
+  color: var(--color-text-muted);
+}
+.dropdown button {
+  border: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+}
+.panelWrap {
+  position: relative;
+}
+.profileButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+}
 .avatar {
+  display: grid;
+  place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-soft-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.72rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.accountInfo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.accountName {
+  border-radius: 50%;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: 11px;
   font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--color-text);
 }
-
-.roleBadge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-primary-soft-text);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-full);
-  padding: 2px var(--space-2);
-}
-
-.logoutButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
+.accountName {
+  font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-  margin-left: var(--space-2);
 }
-
-.logoutButton:hover {
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-  color: var(--color-danger-text);
+@media (max-width: 1100px) {
+  .accountName {
+    display: none;
+  }
+  .header {
+    padding-inline: 24px;
+  }
+  .search input {
+    width: 120px;
+  }
 }
-
 @media (max-width: 768px) {
   .menuButton {
     display: flex;
   }
-
-  .accountInfo {
+  .header {
+    height: 68px;
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .search {
     display: none;
   }
-
-  .logoutButton span {
+  .pageName span {
     display: none;
   }
 }

@@ -2,6 +2,7 @@ package com.insuranceai.backend.ai.orchestrator;
 
 import com.insuranceai.backend.ai.claims.ClaimsAgentService;
 import com.insuranceai.backend.ai.guardrail.InputGuardrailService;
+import com.insuranceai.backend.ai.config.IndiaCurrencyPolicy;
 import com.insuranceai.backend.ai.guardrail.OutputGuardrailService;
 import com.insuranceai.backend.ai.knowledge.KnowledgeAgentService;
 import com.insuranceai.backend.ai.observability.AiCallObservability;
@@ -145,7 +146,7 @@ public class AiOrchestratorService {
         RouteDecision decision;
         try {
             decision = aiCallObservability.timed("orchestrator-route", () -> orchestratorChatClient.prompt()
-                    .system(ROUTER_SYSTEM_PROMPT)
+                    .system(IndiaCurrencyPolicy.systemPrompt(ROUTER_SYSTEM_PROMPT))
                     .user(message)
                     .call()
                     .entity(RouteDecision.class));
@@ -224,7 +225,7 @@ public class AiOrchestratorService {
 
         try {
             return aiCallObservability.timed("orchestrator-synthesize", () -> orchestratorChatClient.prompt()
-                    .system(SYNTHESIS_SYSTEM_PROMPT)
+                    .system(IndiaCurrencyPolicy.systemPrompt(SYNTHESIS_SYSTEM_PROMPT))
                     .user(sb.toString())
                     .call()
                     .content());

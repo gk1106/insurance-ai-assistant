@@ -23,7 +23,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   background: var(--gradient-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,7 +59,9 @@
   text-decoration: none;
   font-size: var(--text-sm);
   font-weight: 500;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .navIcon {
@@ -107,5 +109,79 @@
 
   .sidebar.open {
     transform: translateX(0);
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  padding-top: 28px;
+}
+.brand {
+  padding-bottom: 28px;
+  margin-bottom: 24px;
+}
+.brandMark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--gradient-primary);
+}
+.brandName {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.navList {
+  gap: 5px;
+  padding-inline: 16px;
+}
+.navLink {
+  padding: 12px;
+  font-size: 0.8125rem;
+}
+.active {
+  color: var(--color-primary-soft-text);
+  background: var(--color-primary-soft);
+}
+.profile {
+  margin: auto 16px 0;
+  padding: 20px 8px 4px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.profileAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.profile strong {
+  display: block;
+  font-size: 12px;
+}
+.profile small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.close {
+  display: none;
+}
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+  }
+  .close {
+    display: flex;
+    margin: 0 16px 16px auto;
   }
 }

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public record ClaimRequestDto(
         @NotNull UUID policyId,
         @NotNull @Positive BigDecimal claimAmount,

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "claims")
+/** All monetary amounts are INR (Indian rupees); numeric values are not converted. */
 public class Claim extends BaseEntity {
 
     @Column(name = "claim_number", nullable = false, unique = true, length = 50)
