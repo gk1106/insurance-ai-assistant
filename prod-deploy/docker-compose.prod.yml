@@ -66,6 +66,8 @@ services:
     ports:
       - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-8085}:80"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-O", "/dev/null", "http://127.0.0.1/"]
 
 volumes:
   postgres_data:
