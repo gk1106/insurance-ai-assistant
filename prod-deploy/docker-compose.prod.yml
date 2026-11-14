@@ -1,0 +1,71 @@
+# VPS runtime only: images are built and published by GitHub Actions.
+# No application source, Dockerfiles, Node or Maven are required on the VPS.
+# Keep this file beside .env and update.sh, then run: bash update.sh COMMIT_SHA
+# Use the same Compose project name (insurance) on every update to retain the database volume.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-insurance_ai}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # No ports: mapping -- reachable only from other containers on this compose network, unlike
+    # the dev stack's 5555:5432 host mapping (kept there for local psql access).
+
+  backend:
+    image: ghcr.io/gk1106/insurance-ai-assistant-backend:${IMAGE_TAG:-latest}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'wget -qO- http://localhost:8082/actuator/health/readiness | grep -q ''"status":"UP"''',
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      retries: 12
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-insurance_ai}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required -- generate one, e.g. openssl rand -base64 48}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required, e.g. https://your-domain.com}
+      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:?APP_BOOTSTRAP_ADMIN_USERNAME is required}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:?APP_BOOTSTRAP_ADMIN_EMAIL is required}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:?APP_BOOTSTRAP_ADMIN_PASSWORD is required}
+      TZ: ${TZ:-Asia/Kolkata}
+    volumes:
+      # The VPS needs only this data directory, never a backend source folder.
+      # Read-only for the Java process; Z supplies a private SELinux label on AlmaLinux.
+      - ./documents:/app/documents:ro,Z
+    restart: unless-stopped
+    # No ports: mapping -- only the frontend container (and anything else on this network) can
+    # reach it directly; the outside world only ever talks to the frontend container.
+
+  frontend:
+    image: ghcr.io/gk1106/insurance-ai-assistant-frontend:${IMAGE_TAG:-latest}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-8085}:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
