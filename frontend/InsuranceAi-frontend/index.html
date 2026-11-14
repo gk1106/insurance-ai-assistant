@@ -1,28 +1,87 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" sizes="any" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Insurance AI Assistant</title>
+    <title>Insurance AI | Your Personal Insurance Assistant</title>
+    <meta name="application-name" content="Insurance AI" />
+    <meta
+      name="description"
+      content="Your personal insurance guide. Understand policies, track claims, explore premiums in Indian rupees, and find clear answers with Insurance AI."
+    />
+    <meta
+      name="theme-color"
+      content="#FAFCFE"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0c2036"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="apple-mobile-web-app-title" content="Insurance AI" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Insurance AI" />
+    <meta
+      property="og:title"
+      content="Insurance AI | Your Personal Insurance Assistant"
+    />
+    <meta
+      property="og:description"
+      content="Understand your coverage. Navigate your claims. Your personal insurance companion, powered by AI."
+    />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:image" content="/social-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Insurance AI: your personal insurance guide, with a three-dimensional shield."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Insurance AI | Your Personal Insurance Assistant"
+    />
+    <meta
+      name="twitter:description"
+      content="Clear answers for your policies, premiums, and claims."
+    />
+    <meta name="twitter:image" content="/social-preview.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Insurance AI: your personal insurance guide, with a three-dimensional shield."
+    />
     <script>
-      (function () {
+      ;(function () {
         try {
-          var stored = localStorage.getItem('insuranceai.theme');
+          var stored = localStorage.getItem('insuranceai.theme')
           var theme =
             stored === 'light' || stored === 'dark'
               ? stored
-              : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+              : window.matchMedia &&
+                  window.matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark'
-                : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
+                : 'light'
+          document.documentElement.setAttribute('data-theme', theme)
         } catch (e) {
           /* localStorage unavailable -- default light styles still apply */
         }
-      })();
+      })()
     </script>
   </head>
   <body>
+    <noscript
+      >Insurance AI needs JavaScript to sign in and manage your policies. Please
+      enable JavaScript in your browser.</noscript
+    >
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
