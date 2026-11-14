@@ -1,5 +1,5 @@
 # --- Build stage -------------------------------------------------------
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # Dependencies first so they're cached across builds whenever only source changes.
@@ -7,6 +7,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# Public browser metadata only; server secrets are never passed to this build.
+ARG VITE_SITE_URL
+ENV VITE_SITE_URL=$VITE_SITE_URL
+ENV VITE_API_BASE_URL=/api
 RUN npm run build
 
 

@@ -37,3 +37,13 @@ logging:
     com.insuranceai.backend: INFO
     org.hibernate.SQL: WARN
     org.springframework.web: WARN
+
+# Readiness becomes UP only after startup runners (including admin bootstrap) finish.
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db

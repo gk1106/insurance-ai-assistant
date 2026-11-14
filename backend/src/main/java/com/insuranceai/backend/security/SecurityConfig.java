@@ -41,7 +41,7 @@ public class SecurityConfig {
                         // detailed component breakdown (see management.endpoint.health.show-details
                         // -- left at its default "never" so this stays a yes/no signal, not a
                         // diagnostics endpoint).
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/readiness").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // Runs before the JWT filter so the correlation id (and every log line it
